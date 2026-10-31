@@ -86,8 +86,3 @@ def replay_planner(run: dict[str, Any], planner: CasePlanner, steps: int) -> dic
     """Replay a planner against the scoreable outcomes in a saved run report."""
     outcomes = scored_outcomes(run)
     return replay_outcomes(outcomes, planner, steps, _replay_cases(run, outcomes))
-
-
-def replay_run(run: dict[str, Any], planner: CasePlanner, steps: int) -> dict[str, Any]:
-    """Compatibility name for callers that describe the input as a saved run."""
-    return replay_planner(run, planner, steps)

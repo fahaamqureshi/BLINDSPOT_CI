@@ -84,8 +84,6 @@ PROMPTS = {
     ),
 }
 PROMPT_VERSION = "v1"
-# Kept as a compatibility alias for callers that imported the old constant.
-SYSTEM_PROMPT = PROMPTS[PROMPT_VERSION]
 MAX_FIELD_CHARS = 120
 
 
