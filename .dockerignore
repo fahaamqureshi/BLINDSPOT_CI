@@ -1,0 +1,16 @@
+.env
+.venv
+.git
+artifacts
+dist
+.blindspot-cache
+.pytest_cache
+.ruff_cache
+datasets/real
+datasets/open
+datasets/hard
+datasets/video
+datasets/generated
+datasets/corrupted
+datasets/*_manifest.json
+tests

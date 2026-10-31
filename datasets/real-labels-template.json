@@ -1,0 +1,15 @@
+{
+  "cases": [
+    {
+      "id": "tray_001",
+      "title": "Red tag, bright light",
+      "image_source": "C:/Users/YourName/Pictures/tray_001.jpg",
+      "condition": "normal",
+      "concept": "red safety tag",
+      "ground_truth": {"visibility": "visible", "bbox": [20, 40, 120, 150]},
+      "label_provenance": {"annotator": "YOUR_NAME", "labeled_at": "2026-11-01", "reviewer": ""},
+      "recovery_case": null,
+      "note": "Replace every value with what you measured on the upright photo"
+    }
+  ]
+}

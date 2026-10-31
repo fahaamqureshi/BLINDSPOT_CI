@@ -1,0 +1,82 @@
+{
+  "dataset_id": "synthetic-maintenance-tray-v0",
+  "type": "SYNTHETIC_DEVELOPMENT_FIXTURES_NOT_VALIDATION_DATA",
+  "license": "Original synthetic drawings produced by this project",
+  "annotation_status": "programmatically labeled; NOT independently human-verified",
+  "cases": [
+    {
+      "id": "normal",
+      "title": "Clear baseline",
+      "image": "samples/normal.png",
+      "condition": "normal",
+      "concept": "red safety tag",
+      "ground_truth": {
+        "visibility": "visible",
+        "bbox": [
+          200,
+          125,
+          285,
+          215
+        ]
+      },
+      "note": "Bright view; reference case"
+    },
+    {
+      "id": "low_light",
+      "title": "Low-light challenge",
+      "image": "samples/low_light.png",
+      "condition": "low_light",
+      "concept": "red safety tag",
+      "ground_truth": {
+        "visibility": "visible",
+        "bbox": [
+          200,
+          125,
+          285,
+          215
+        ]
+      },
+      "recovery_case": "alternate_view",
+      "note": "Tag is present; the scripted mock prediction misses it"
+    },
+    {
+      "id": "occluded",
+      "title": "Fully obstructed target",
+      "image": "samples/occluded.png",
+      "condition": "occlusion",
+      "concept": "red safety tag",
+      "ground_truth": {
+        "visibility": "unknown"
+      },
+      "note": "This image alone cannot show whether the tag is present"
+    },
+    {
+      "id": "alternate_view",
+      "title": "Second photo, clear view",
+      "image": "samples/alternate_view.png",
+      "condition": "alternate_view",
+      "concept": "red safety tag",
+      "ground_truth": {
+        "visibility": "visible",
+        "bbox": [
+          220,
+          125,
+          305,
+          215
+        ]
+      },
+      "note": "A second photo supplied by a person"
+    },
+    {
+      "id": "absent",
+      "title": "Tag truly absent",
+      "image": "samples/absent.png",
+      "condition": "absent",
+      "concept": "red safety tag",
+      "ground_truth": {
+        "visibility": "absent"
+      },
+      "note": "Negative control"
+    }
+  ]
+}

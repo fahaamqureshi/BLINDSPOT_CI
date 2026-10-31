@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BLINDSPOT labeler</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect x=%278%27 y=%278%27 width=%2716%27 height=%2716%27 fill=%27%23c8281c%27 transform=%27rotate(45 16 16)%27/%3E%3C/svg%3E">
+<style>
+:root{color-scheme:light dark;--bg:#f6f7f9;--card:#fff;--ink:#17202a;--mute:#5d6b7a;--line:#d9dee5;--accent:#1769aa;--ok:#1b7f4b}
+@media(prefers-color-scheme:dark){:root{--bg:#0f141a;--card:#171e26;--ink:#e8edf2;--mute:#9aa8b6;--line:#2b3641;--accent:#5aa9e6;--ok:#4cc38a}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,sans-serif}
+main{max-width:1000px;margin:0 auto;padding:20px 16px 50px}h1{margin:0 0 4px;font-size:24px}p{margin:0 0 10px;color:var(--mute)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-top:12px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+button{padding:9px 14px;background:var(--accent);color:#fff;border:0;border-radius:8px;font-size:14px;cursor:pointer}
+button.alt{background:transparent;color:var(--accent);border:1px solid var(--accent)}button:disabled{opacity:.5}
+select,input{padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit}
+#wrap{position:relative;display:inline-block;max-width:100%;touch-action:none}#wrap canvas{max-width:100%;height:auto;display:block;border-radius:6px;cursor:crosshair}
+.warn{border-left:4px solid #9a6700;padding:8px 12px;background:var(--card);border-radius:6px}
+.done{color:var(--ok)}.small{font-size:13px;color:var(--mute)}
+</style></head><body><main>
+<h1>BLINDSPOT labeler</h1>
+<div class="warn">You draw every box. Never copy a box from SAM or Muse: that would be the model grading itself.</div>
+<div class="card">
+ <div class="row"><b id="progress">Loading...</b><span class="small" id="who"></span></div>
+ <div class="row" style="margin-top:8px"><button class="alt" id="prev">Previous</button><button class="alt" id="next">Next</button>
+ <select id="jump" aria-label="Jump to photo"></select></div>
+</div>
+<div class="card">
+ <div id="wrap"><canvas id="cv" role="img" aria-label="The photo to label. Drag to draw a box, or type the box numbers below."></canvas></div>
+ <p class="small" id="coords" role="status">Drag on the photo to draw a box around the object only.</p>
+ <div class="row">
+  <label>This photo <select id="vis"><option value="visible">object visible (draw a box)</option><option value="absent">object absent</option><option value="unknown">cannot tell</option></select></label>
+  <label>Condition <select id="cond"></select></label>
+  <input id="note" aria-label="Optional note" placeholder="optional note" maxlength="300" style="flex:1;min-width:160px">
+ </div>
+ <fieldset class="row" style="margin-top:10px;border:1px solid var(--line)"><legend class="small">Box numbers in pixels (keyboard alternative to dragging)</legend><label>left <input id="bx1" type="number" min="0" style="width:84px"></label><label>top <input id="by1" type="number" min="0" style="width:84px"></label><label>right <input id="bx2" type="number" min="0" style="width:84px"></label><label>bottom <input id="by2" type="number" min="0" style="width:84px"></label><button class="alt" id="applybox" type="button">Use these numbers</button></fieldset>
+ <div class="row" style="margin-top:10px"><button id="save">Save and next</button><button class="alt" id="clear">Clear box</button><span id="msg" class="small" role="status"></span></div>
+</div>
+<script>
+const $=id=>document.getElementById(id);let imgs=[],idx=0,meta={},box=null,img=new Image(),drag=null;
+const cv=$('cv'),ctx=cv.getContext('2d');
+async function api(p,o){const r=await fetch(p,o);let d={};try{d=await r.json()}catch(e){}if(!r.ok)throw Error(typeof d.detail==='string'?d.detail:d.detail?JSON.stringify(d.detail):r.status);return d}
+function draw(){ctx.clearRect(0,0,cv.width,cv.height);ctx.drawImage(img,0,0);
+ if(box){ctx.lineWidth=Math.max(3,cv.width/250);ctx.strokeStyle='#ffd23f';ctx.setLineDash([10,6]);ctx.strokeRect(box[0],box[1],box[2]-box[0],box[3]-box[1])}}
+function pos(e){const r=cv.getBoundingClientRect();return[Math.round((e.clientX-r.left)*cv.width/r.width),Math.round((e.clientY-r.top)*cv.height/r.height)]}
+cv.addEventListener('pointerdown',e=>{if($('vis').value!=='visible')return;cv.setPointerCapture(e.pointerId);drag=pos(e)});
+cv.addEventListener('pointermove',e=>{if(!drag)return;const p=pos(e);box=[Math.min(drag[0],p[0]),Math.min(drag[1],p[1]),Math.max(drag[0],p[0]),Math.max(drag[1],p[1])];draw();$('coords').textContent=`box [${box.join(', ')}] on a ${cv.width}x${cv.height} photo`});
+cv.addEventListener('pointerup',()=>{drag=null;if(box&&(box[2]-box[0]<4||box[3]-box[1]<4)){box=null;draw()}});
+async function show(i){idx=Math.max(0,Math.min(imgs.length-1,i));const n=imgs[idx].name;$('msg').textContent='';
+ img=new Image();img.onload=async()=>{cv.width=img.naturalWidth;cv.height=img.naturalHeight;box=null;
+  const old=await api('/api/label/'+encodeURIComponent(n));$('vis').value=old.ground_truth?old.ground_truth.visibility:'visible';
+  $('cond').value=old.condition||'normal';$('note').value=old.note||'';if(old.ground_truth&&old.ground_truth.bbox)box=old.ground_truth.bbox;draw();
+  $('coords').textContent=box?`saved box [${box.join(', ')}]`:`Drag on the photo to draw a box. Photo is ${cv.width}x${cv.height}.`};
+ img.src='/api/image/'+encodeURIComponent(n);head()}
+function head(){const d=imgs.filter(x=>x.labeled).length;$('progress').textContent=`Photo ${idx+1} of ${imgs.length}: ${imgs[idx].name} (${d} labeled)`;
+ $('jump').replaceChildren(...imgs.map((x,i)=>{const o=document.createElement('option');o.value=i;o.textContent=(x.labeled?'done  ':'      ')+x.name;if(i===idx)o.selected=true;return o}))}
+$('save').onclick=async()=>{const vis=$('vis').value;if(vis==='visible'&&!box){$('msg').textContent='Draw a box first, or pick absent or cannot tell.';return}
+ try{const r=await api('/api/label',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:imgs[idx].name,condition:vis==='absent'?'absent':vis==='unknown'?'unknown':$('cond').value,visibility:vis,bbox:vis==='visible'?box:null,note:$('note').value})});
+  imgs[idx].labeled=true;$('msg').textContent=`Saved (${r.total} of ${r.of}).`;if(idx<imgs.length-1)show(idx+1);else head()}catch(e){$('msg').textContent='Not saved: '+e.message}};
+$('clear').onclick=()=>{box=null;draw()};
+$('applybox').onclick=()=>{const v=['bx1','by1','bx2','by2'].map(i=>Number($(i).value));
+ if(v.some(x=>!Number.isFinite(x))||v[0]>=v[2]||v[1]>=v[3]||v[2]>cv.width||v[3]>cv.height){$('msg').textContent=`Enter left < right and top < bottom inside the ${cv.width}x${cv.height} photo.`;return}
+ box=v;draw();$('coords').textContent=`box [${box.join(', ')}] on a ${cv.width}x${cv.height} photo`};$('prev').onclick=()=>show(idx-1);$('next').onclick=()=>show(idx+1);$('jump').onchange=e=>show(Number(e.target.value));
+$('vis').onchange=()=>{if($('vis').value!=='visible'){box=null;draw()}};
+(async()=>{const d=await api('/api/images');imgs=d.images;meta=d;$('who').textContent=`Labeling as ${d.annotator}. Concept: ${d.concept}.`;
+ $('cond').replaceChildren(...d.conditions.filter(c=>!['absent','unknown'].includes(c)).map(c=>{const o=document.createElement('option');o.value=c;o.textContent=c.replace('_',' ');return o}));show(0)})().catch(e=>{$('progress').textContent='Cannot load photos ('+e.message+'). Check that the label command is still running, then reload.'});
+</script></main></body></html>

@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Guide - BLINDSPOT CI</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect x=%278%27 y=%278%27 width=%2716%27 height=%2716%27 fill=%27%23c8281c%27 transform=%27rotate(45 16 16)%27/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,700..900&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/site.css">
+</head><body>
+<a class="skip" href="#main">Skip to content</a>
+<nav class="top"><div class="wrap"><b><i></i>BLINDSPOT CI</b>
+ <a href="/">Overview</a><a href="/demo">Demo</a><a href="/guide" aria-current="page">Guide</a><a href="/app">Run a test</a></div></nav>
+
+<div class="wrap guide">
+<nav class="toc" aria-label="On this page">
+ <a href="#start">Start in five minutes</a><a href="#parts">What each part does</a><a href="#live">Run it live</a>
+ <a href="#own-photos">Test your own photos</a><a href="#read">Read a result</a><a href="#video">Record the demo</a><a href="#limits">What it cannot tell you</a>
+</nav>
+<main id="main">
+<h1 style="font-size:clamp(36px,5vw,56px)">Guide</h1>
+<p class="lede">How to run BLINDSPOT CI, read what it says, and show it to someone else.</p>
+
+<section id="start"><h2>Start in five minutes</h2>
+<p>You need Python 3.11 or newer. The first run uses scripted answers, so it needs no key and no network.</p>
+<pre tabindex="0"><code>py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -e ".[dev]"
+Copy-Item .env.example .env
+python -m pytest
+python -m blindspot_ci.cli serve</code></pre>
+<p>Open <a href="http://127.0.0.1:8000">http://127.0.0.1:8000</a>. Use <a href="/demo">Demo</a> for a guided run and <a href="/app">Run a test</a> for the full tool. The banner always says which mode you are in.</p></section>
+
+<section id="parts"><h2>What each part does</h2>
+<dl>
+<dt>Muse Spark 1.3, the agent</dt><dd>Picks the next test by function calling. It sees earlier results but never the labels.</dd>
+<dt>SAM 3.1, the model under test</dt><dd>Segments the photo from a word such as "fire hydrant" and returns boxes and masks.</dd>
+<dt>Python, the scorer</dt><dd>Compares the best box with the box a person drew. A test passes at IoU 0.35 or higher.</dd>
+<dt>Muse Image 1.0</dt><dd>Makes labeled dark, glare and blur variants. They carry a GENERATED label and are not photos.</dd>
+<dt>Muse Voice Transcribe 1.0</dt><dd>Turns a spoken reviewer note into text.</dd>
+<dt>Muse Wonder 1.0</dt><dd>Writes a plain-language audit of a finished run. It cannot change a score.</dd>
+</dl></section>
+
+<section id="live"><h2>Run it live</h2>
+<ol>
+<li>Put your key in <code>.env</code> as <code>MODEL_API_KEY</code>. Never share or commit that file.</li>
+<li>Set <code>BLINDSPOT_PROVIDER=meta</code> and <code>LIVE_API_ENABLED=true</code>.</li>
+<li>Choose a dataset in the tool, or run it from the terminal:</li>
+</ol>
+<pre tabindex="0"><code>$env:BLINDSPOT_PROVIDER="meta"; $env:LIVE_API_ENABLED="true"; $env:BLINDSPOT_DATASET="open"
+python -m blindspot_ci.cli experiment --steps 8 --planner muse</code></pre>
+<p>A SAM call costs about a quarter of a cent. A full run of 24 photos costs a few cents. A session budget stops the run when the call limit is reached. Real photo sets are built by <code>scripts/fetch_open_data.py</code>, <code>scripts/fetch_open_data_hard.py</code> and <code>scripts/fetch_open_video.py</code>.</p></section>
+
+<section id="own-photos"><h2>Test your own photos</h2>
+<ol>
+<li>Put 20 to 40 photos of your tray and tag in one folder. Include dark, angled, partly covered and no-tag photos.</li>
+<li>Start the labeling tool and draw a box around the tag on each photo. Your name is stored on every label.</li>
+<li>Import the labels and run the tests.</li></ol>
+<pre tabindex="0"><code>python -m blindspot_ci.cli label --folder "C:\path\to\photos" --annotator "Your Name" --out my-labels.json
+python -m blindspot_ci.cli import-photos my-labels.json
+.\scripts\live_experiment.ps1 -Dataset real -Steps 24</code></pre>
+<p>Draw every box yourself. A box copied from SAM or Muse would be the model grading itself. If you can, ask a second person to check some labels and record their name.</p></section>
+
+<section id="read"><h2>Read a result</h2>
+<dl>
+<dt>PASS</dt><dd>The best box overlapped the label by at least the threshold. It is one example.</dd>
+<dt>FAIL_FALSE_NEGATIVE</dt><dd>The object was there and the model found nothing.</dd>
+<dt>FAIL_FALSE_POSITIVE</dt><dd>The object was not there and the model found something.</dd>
+<dt>FAIL_LOCALIZATION</dt><dd>The model found something, but not where the label is.</dd>
+<dt>UNKNOWN and ERROR</dt><dd>Not scored. They never count as a model miss.</dd>
+<dt>Mode label</dt><dd>MOCK_FIXTURE is scripted. LIVE_META is a real SAM call made for this run. CACHE_LIVE_META is a real answer saved earlier and replayed.</dd>
+<dt>95% interval</dt><dd>The range the true pass rate could plausibly sit in. Slices with fewer than 5 scored cases are marked underpowered. Quote counts, not bare percentages.</dd>
+</dl></section>
+
+<section id="video"><h2>Record the demo (about three minutes)</h2>
+<p>Use this order for the hackathon video. Say only what the screen shows.</p>
+<ol>
+<li><b>0:00 The question.</b> Open the overview. Say what the tool does and that it is not a safety approval.</li>
+<li><b>0:20 The scoring rule.</b> Drag the amber box in the overview. Show the overlap number and PASS or FAIL change.</li>
+<li><b>0:45 The free demo.</b> Open Demo and press Run. Point at one passing step and one failing step. Say the banner: scripted answers, not SAM performance.</li>
+<li><b>1:20 The live run.</b> In the tool, switch to the Open Images set with a live key. Run 6 steps. Show the agent's reason for each choice and the mode label LIVE_META.</li>
+<li><b>2:00 A real miss.</b> Open a failed case. Show the green model box, the dashed human box and the score.</li>
+<li><b>2:20 The evidence.</b> Show the results table with intervals, the evaluation card download and the Muse Wonder audit.</li>
+<li><b>2:45 The honest limits.</b> State that the agent has not been shown to beat random order, the photos are hydrants and stop signs, and small slices are underpowered.</li></ol></section>
+
+<section id="limits"><h2>What it cannot tell you</h2>
+<ul>
+<li>It tests one prompt wording on one photo per case. A pass is not a guarantee for that condition.</li>
+<li>Scores use box overlap. There is no mask-quality score, because there are no human masks for the Open Images photos.</li>
+<li>The public sets show hydrants and stop signs. They do not show how SAM handles your tag.</li>
+<li>Labels are checked by a second person only when a reviewer is named in the label record.</li>
+<li>Results hold for the listed model versions and dates.</li></ul></section>
+</main></div>
+<footer><div class="wrap">BLINDSPOT CI is a bounded evaluation, not a safety approval.</div></footer>
+</body></html>

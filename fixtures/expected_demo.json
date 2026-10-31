@@ -1,0 +1,21 @@
+[
+  {
+    "scenario_id": "warehouse_001",
+    "must_have_blind_spots": [
+      "fire_extinguisher"
+    ],
+    "must_have_false_positives": [
+      "wet_floor"
+    ],
+    "must_have_status": "needs_human_review"
+  },
+  {
+    "scenario_id": "corridor_003",
+    "must_have_blind_spots": [],
+    "must_have_false_positives": [
+      "fire_extinguisher"
+    ],
+    "must_have_status": "needs_human_review",
+    "note": "hard negative: red cylinder-like objects must not count as an extinguisher"
+  }
+]

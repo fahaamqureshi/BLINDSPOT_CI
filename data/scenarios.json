@@ -1,0 +1,32 @@
+[
+  {
+    "id": "warehouse_001",
+    "description": "A warehouse aisle with a worker, a reflective patch on the floor, a safety sign, and a fire extinguisher partly occluded by a pallet.",
+    "image_url": null,
+    "probe_catalog": [
+      "person",
+      "safety_sign",
+      "fire_extinguisher",
+      "wet_floor"
+    ]
+  },
+  {
+    "id": "lab_002",
+    "description": "A small lab bench with a glass beaker and a warning label partly hidden by glare.",
+    "image_url": null,
+    "probe_catalog": [
+      "beaker",
+      "warning_label"
+    ]
+  },
+  {
+    "id": "corridor_003",
+    "description": "A corridor with an illuminated exit sign, a red fire hose cabinet and a red paint bucket on the floor. There is no fire extinguisher in view.",
+    "image_url": null,
+    "probe_catalog": [
+      "exit_sign",
+      "fire_extinguisher",
+      "person"
+    ]
+  }
+]

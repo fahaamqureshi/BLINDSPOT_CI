@@ -1,0 +1,57 @@
+{
+  "warehouse_001": {
+    "person": {
+      "confidence": 0.98,
+      "note": "visible person"
+    },
+    "safety_sign": {
+      "confidence": 0.88,
+      "note": "sign-like region"
+    },
+    "wet_floor": {
+      "confidence": 0.62,
+      "note": "reflective patch"
+    }
+  },
+  "lab_002": {
+    "beaker": {
+      "confidence": 0.91,
+      "note": "glass vessel"
+    }
+  },
+  "corridor_003": {
+    "exit_sign": {
+      "confidence": 0.93,
+      "note": "illuminated sign"
+    },
+    "fire_extinguisher": {
+      "confidence": 0.71,
+      "note": "red cylindrical object"
+    }
+  },
+  "normal": {
+    "red safety tag": {
+      "box": [
+        200,
+        125,
+        285,
+        215
+      ],
+      "note": "scripted fixture prediction"
+    }
+  },
+  "low_light": {},
+  "occluded": {},
+  "alternate_view": {
+    "red safety tag": {
+      "box": [
+        219,
+        124,
+        305,
+        214
+      ],
+      "note": "scripted fixture prediction"
+    }
+  },
+  "absent": {}
+}

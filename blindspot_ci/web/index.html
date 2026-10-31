@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BLINDSPOT CI</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect x=%278%27 y=%278%27 width=%2716%27 height=%2716%27 fill=%27%23c8281c%27 transform=%27rotate(45 16 16)%27/%3E%3C/svg%3E">
+<style>
+:root{color-scheme:light dark;--bg:#f6f7f9;--card:#fff;--ink:#17202a;--mute:#5d6b7a;--line:#d9dee5;--ok:#1b7f4b;--bad:#b3261e;--warn:#9a6700;--accent:#1769aa}
+@media(prefers-color-scheme:dark){:root{--bg:#0f141a;--card:#171e26;--ink:#e8edf2;--mute:#9aa8b6;--line:#2b3641;--ok:#4cc38a;--bad:#ff8a80;--warn:#e3b341;--accent:#5aa9e6}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,sans-serif}
+main{max-width:1080px;margin:0 auto;padding:24px 16px 60px}h1{margin:0 0 4px;font-size:28px}h2{font-size:17px;margin:0 0 10px}
+p{margin:0 0 10px;color:var(--mute)}.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.badge{display:inline-block;padding:3px 10px;border-radius:999px;border:1px solid var(--line);font-size:12px;font-weight:600}
+.skip{position:absolute;left:-999px;top:8px;background:var(--ink);color:var(--bg);padding:10px 14px;z-index:10}.skip:focus{left:8px}
+.banner{border-left:4px solid var(--warn);background:var(--card);padding:10px 14px;margin:14px 0;border-radius:6px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:14px 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}
+.stat b{display:block;font-size:26px}.layout{display:grid;grid-template-columns:320px 1fr;gap:16px}
+@media(max-width:800px){.layout{grid-template-columns:1fr}}
+button{padding:9px 14px;background:var(--accent);color:#fff;border:0;border-radius:8px;font-size:14px;cursor:pointer}
+button.alt{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+button:disabled{opacity:.5;cursor:wait}
+@media(prefers-color-scheme:dark){button{color:#0f141a}button.alt{color:var(--accent)}}select,textarea{padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit}
+textarea{width:100%;min-height:54px}
+.case{display:flex;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);font-size:14px}
+.case img{width:56px;height:38px;object-fit:cover;border-radius:4px}.case small{color:var(--mute);display:block}
+.step{border:1px solid var(--line);border-radius:10px;padding:14px;margin:0 0 14px;background:var(--card)}
+.PASS{color:var(--ok)}.UNKNOWN,.ERROR{color:var(--warn)}.FAIL_FALSE_NEGATIVE,.FAIL_FALSE_POSITIVE,.FAIL_LOCALIZATION{color:var(--bad)}
+.why{border-left:3px solid var(--accent);padding-left:10px;margin:8px 0;color:var(--mute);font-size:14px}
+.photo{position:relative;width:100%;max-width:520px;margin:8px 0;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#222}
+.photo img,.photo svg{display:block;width:100%;height:auto}.photo svg{position:absolute;inset:0;height:100%}
+.legend{font-size:12px;color:var(--mute)}.small{font-size:12px;color:var(--mute);word-break:break-all}
+.err{color:var(--bad)}.models{display:grid;gap:8px}
+.model{display:flex;gap:10px;align-items:flex-start;font-size:13px}.dot{flex:none;width:10px;height:10px;border-radius:50%;margin-top:6px;background:var(--line)}
+.model.on .dot{background:var(--ok)}.model b{display:block}.model span{color:var(--mute)}
+.edits label{display:inline-block;margin:0 10px 6px 0;font-size:14px}
+.notes{margin-top:10px;border-top:1px dashed var(--line);padding-top:10px}.note{font-size:14px;margin:4px 0}.note small{color:var(--mute)}
+.audit{white-space:pre-wrap;font-size:14px;margin:8px 0 0}
+.rec{background:var(--bad);color:#000}
+table{border-collapse:collapse;width:100%;font-size:14px}th,td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left}.under{color:var(--warn)}
+</style></head><body>
+<a class="skip" href="#main">Skip to content</a><main id="main">
+<div class="row"><h1>BLINDSPOT CI</h1><a href="/">Overview</a><a href="/demo">Demo</a><a href="/guide">Guide</a><span class="badge" id="mode">...</span><span class="badge" id="dsbadge"></span></div>
+<p>An agent that looks for conditions where a vision model misses a red safety tag, and scores each test against a human label.</p>
+<div class="banner" id="banner"></div>
+<div class="stats">
+ <div class="card stat"><b id="s-tested">-</b>tests run</div><div class="card stat"><b id="s-pass">-</b>passed</div>
+ <div class="card stat"><b id="s-fail">-</b>failed</div><div class="card stat"><b id="s-unknown">-</b>unknown</div>
+</div>
+<div class="layout">
+ <div>
+  <div class="card"><h2>Run an experiment</h2>
+   <label>Dataset <select id="dataset"></select></label>
+   <p></p><label>Max tests <select id="steps"><option>3</option><option selected>5</option><option>6</option><option>8</option></select></label>
+   <p></p><button id="run">Run experiment</button><p id="note" class="small" role="status"></p></div>
+  <div class="card" style="margin-top:12px"><h2>Muse Image stress variants</h2>
+   <p>Edits your labeled photos into harder conditions. Boxes are inherited and marked GENERATED. About $0.01 per image.</p>
+   <div class="edits"><label><input type="checkbox" value="low_light" checked> low light</label><label><input type="checkbox" value="glare" checked> glare</label><label><input type="checkbox" value="motion_blur"> motion blur</label></div>
+   <button id="stress" class="alt">Generate variants</button><p id="stressnote" class="small" role="status"></p>
+   <h2 style="margin-top:14px">Measured corruptions</h2>
+   <p>Low light, noise and blur at severity 3 and 5, like ImageNet-C. Free. No pixel moves, so the human box stays exact.</p>
+   <button id="corrupt" class="alt">Add measured corruptions</button><p id="corruptnote" class="small" role="status"></p></div>
+  <div class="card" style="margin-top:12px"><h2>Meta models in this app</h2><div class="models" id="models"></div></div>
+  <div class="card" style="margin-top:12px"><h2>Test inventory</h2><div id="cases">Loading...</div></div>
+ </div>
+ <div class="card"><h2>Evidence trace</h2><div id="timeline" aria-live="polite"><p>Run an experiment to see each decision, photo, prediction and score.</p></div></div>
+</div>
+<p class="small" style="margin-top:16px">A PASS means the model met the stated threshold on one labeled example. It is not a safety approval.
+<a href="/probes">Multi-object probe demo</a></p>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const NS='http://www.w3.org/2000/svg';
+const used=new Set();let info=null,ds='synthetic';
+function h(tag,attrs,...kids){const e=document.createElement(tag);for(const[k,v]of Object.entries(attrs||{}))e.setAttribute(k,v);for(const kid of kids)e.append(kid);return e}
+function s(tag,attrs){const e=document.createElementNS(NS,tag);for(const[k,v]of Object.entries(attrs))e.setAttribute(k,v);return e}
+async function api(path,opts){const r=await fetch(path,opts);let d={};try{d=await r.json()}catch(e){}if(!r.ok)throw Error(typeof d.detail==='string'?d.detail:d.detail?JSON.stringify(d.detail):r.status);return d}
+const img=(c,d)=>`${c.image_url}?dataset=${encodeURIComponent(d||ds)}`;
+function drawModels(){$('models').replaceChildren(...info.models.map(m=>h('div',{class:'model'+(used.has(m.id)?' on':'')},h('i',{class:'dot'}),h('div',{},h('b',{},m.model),h('span',{},m.role+(used.has(m.id)?' (used this session)':''))))))}
+function overlay(step){
+  const w=step.case.width,ht=step.case.height,svg=s('svg',{viewBox:`0 0 ${w} ${ht}`,preserveAspectRatio:'none'});
+  for(const d of (step.prediction?step.prediction.detections:[])){
+    const m=d.mask;
+    if(m&&m.svg_path&&m.bounds_xyxy){const[l,t,r,b]=m.bounds_xyxy;
+      svg.append(s('path',{d:m.svg_path,transform:`translate(${l} ${t}) scale(${(r-l)/m.width} ${(b-t)/m.height})`,fill:'rgba(23,180,120,.45)',stroke:'none'}))}
+    if(d.bbox){const[x1,y1,x2,y2]=d.bbox;svg.append(s('rect',{x:x1,y:y1,width:x2-x1,height:y2-y1,fill:'none',stroke:'#17b478','stroke-width':Math.max(2,w/200)}))}}
+  const gt=step.ground_truth&&step.ground_truth.bbox;
+  if(gt){const[x1,y1,x2,y2]=gt;svg.append(s('rect',{x:x1,y:y1,width:x2-x1,height:y2-y1,fill:'none',stroke:'#ffd23f','stroke-width':Math.max(2,w/200),'stroke-dasharray':'6 4'}))}
+  return svg}
+async function toWav(blob){
+  const ctx=new AudioContext(),buf=await ctx.decodeAudioData(await blob.arrayBuffer());ctx.close();
+  const off=new OfflineAudioContext(1,Math.max(1,Math.ceil(buf.duration*16000)),16000),src=off.createBufferSource();
+  src.buffer=buf;src.connect(off.destination);src.start();const pcm=(await off.startRendering()).getChannelData(0);
+  const out=new DataView(new ArrayBuffer(44+pcm.length*2)),w=(o,t)=>[...t].forEach((c,i)=>out.setUint8(o+i,c.charCodeAt(0)));
+  w(0,'RIFF');out.setUint32(4,36+pcm.length*2,true);w(8,'WAVEfmt ');out.setUint32(16,16,true);out.setUint16(20,1,true);out.setUint16(22,1,true);
+  out.setUint32(24,16000,true);out.setUint32(28,32000,true);out.setUint16(32,2,true);out.setUint16(34,16,true);w(36,'data');out.setUint32(40,pcm.length*2,true);
+  pcm.forEach((v,i)=>out.setInt16(44+i*2,Math.max(-1,Math.min(1,v))*0x7fff,true));return new Blob([out],{type:'audio/wav'})}
+function noteList(run,caseId){return run.reviewer_notes.filter(n=>n.case_id===caseId).map(n=>h('div',{class:'note'},n.text+' ',h('small',{},n.source==='typed'?'(typed)':'(spoken, Muse Voice Transcribe)')))}
+function noteBox(run,caseId,msg){
+  const list=h('div',{});const draw=()=>list.replaceChildren(...noteList(run,caseId));draw();
+  const ta=h('textarea',{'aria-label':'Reviewer note',placeholder:'Reviewer note: is the yellow box on the tag? Does the green box match?',maxlength:'1000'});
+  const save=h('button',{class:'alt'},'Save note'),rec=h('button',{class:'alt'},'Record voice note');
+  const add=n=>{run.reviewer_notes.push(n);draw()};
+  save.onclick=async()=>{if(!ta.value.trim())return;try{add(await api(`/api/runs/${run.id}/notes`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({case_id:caseId,text:ta.value})}));ta.value='';msg.textContent=''}catch(e){msg.textContent='Note failed: '+e.message}};
+  let mr=null,chunks=[];
+  rec.onclick=async()=>{
+    if(mr){mr.stop();return}
+    try{const stream=await navigator.mediaDevices.getUserMedia({audio:true});mr=new MediaRecorder(stream);chunks=[];
+      mr.ondataavailable=e=>chunks.push(e.data);
+      mr.onstop=async()=>{stream.getTracks().forEach(t=>t.stop());mr=null;rec.textContent='Record voice note';rec.classList.remove('rec');msg.textContent='Transcribing with Muse Voice Transcribe...';
+        try{const wav=await toWav(new Blob(chunks));add(await api(`/api/runs/${run.id}/voice?case_id=${encodeURIComponent(caseId)}`,{method:'POST',headers:{'content-type':'audio/wav'},body:wav}));used.add('muse-voice-transcribe-1.0');drawModels();msg.textContent=''}catch(e){msg.textContent='Voice note failed: '+e.message}};
+      mr.start();rec.textContent='Stop recording';rec.classList.add('rec');msg.textContent='Recording. Speak, then press Stop.';
+      setTimeout(()=>{if(mr&&mr.state==='recording')mr.stop()},60000)}
+    catch(e){msg.textContent='Microphone unavailable: '+e.message}};
+  return h('div',{class:'notes'},list,ta,h('div',{class:'row'},save,rec))}
+function render(run){
+  run.reviewer_notes=run.reviewer_notes||[];run.dataset_name=ds;
+  const sum=run.summary;$('s-tested').textContent=sum.tested;$('s-pass').textContent=sum.passed;$('s-fail').textContent=sum.failed;$('s-unknown').textContent=sum.unknown;
+  if(run.mode.includes('LIVE')){used.add('muse-spark-1.3');used.add('sam-3.1');drawModels()}
+  const t=$('timeline');t.replaceChildren(h('div',{class:'row'},h('span',{class:'badge'},run.mode),h('span',{class:'badge'},run.planner),h('span',{class:'badge'},`run ${run.id}`),h('span',{class:'badge'},`${run.calls} calls, ~$${run.estimated_cost_usd}`),h('span',{class:'badge'},run.dataset.type)));
+  run.steps.forEach((st,i)=>{
+    const o=st.outcome,p=st.prediction,card=h('div',{class:'step'}),msg=h('p',{class:'small'});
+    card.append(h('div',{class:'row'},h('b',{},`${i+1}. ${st.case.title}`),h('span',{class:'badge '+o.status},o.status)));
+    card.append(h('div',{class:'why'},`${st.decision.planner}: ${st.decision.reason}`+(st.decision.tool_call_id?` (tool call ${st.decision.tool_call_id})`:'')));
+    if(p){const ph=h('div',{class:'photo'},h('img',{src:img(st.case,run.dataset_name),alt:st.case.title}));ph.append(overlay(st));card.append(ph);
+      card.append(h('div',{class:'legend'},'Green: model detection and mask. Yellow dashed: human label, shown after scoring.'+(run.dataset.type.startsWith('GENERATED')?' On generated images the yellow box is inherited from the source photo: check that it still sits on the tag.':'')))}
+    card.append(h('p',{},o.reason));
+    if(p)card.append(h('div',{class:'small'},`Source ${p.source} | ${p.model} | IoU ${o.iou===null?'n/a':o.iou} | ${p.latency_ms} ms | image sha256 ${st.image_sha256.slice(0,16)}`));
+    card.append(noteBox(run,st.case.id,msg),msg);t.append(card)});
+  for(const e of run.errors)t.append(h('p',{class:'err'},e));
+  const ci=r=>r.scored?`${r.passed} of ${r.scored} (95% interval ${Math.round(r.pass_ci95[0]*100)}% to ${Math.round(r.pass_ci95[1]*100)}%)`:'n/a';
+  const tbl=h('table',{},h('tr',{},h('th',{},'Slice'),h('th',{},'Passed of scored'),h('th',{},'Evidence')));
+  for(const[name,r]of [['all tests',sum],...Object.entries(sum.by_condition)])tbl.append(h('tr',{},h('td',{},name),h('td',{},ci(r)),h('td',{class:r.underpowered?'under':''},r.underpowered?'underpowered: fewer than 5 scored':'ok')));
+  t.append(h('div',{class:'step'},h('h2',{},'Results with uncertainty'),tbl,h('p',{class:'small'},'Wilson 95% intervals. Small slices are wide on purpose: report counts, not bare percentages.'),h('a',{href:`/api/runs/${run.id}/card`,download:`evaluation-card-${run.id}.md`},'Download evaluation card (Markdown)')));
+  const box=h('div',{class:'step'}),out=h('div',{class:'audit'}),amsg=h('p',{class:'small'}),btn=h('button',{},'Write audit with Muse Wonder');
+  box.append(h('h2',{},'Audit'),h('p',{},'Muse Wonder reads the saved results and writes a plain-language audit. It cannot change any score.'),btn,amsg,out);
+  if(run.audit)out.textContent=run.audit.text;
+  btn.onclick=async()=>{btn.disabled=true;amsg.textContent='Muse Wonder is writing...';try{const a=await api(`/api/runs/${run.id}/audit`,{method:'POST'});out.textContent=a.text;used.add('muse-wonder-1.0');drawModels();amsg.textContent='Written by '+a.model}catch(e){amsg.textContent='Audit failed: '+e.message}finally{btn.disabled=false}};
+  t.append(box)}
+async function loadCases(){
+  const data=await api('/api/cases?dataset='+ds);
+  if(!data.cases.length){$('cases').textContent='No cases in this dataset. Pick another dataset, or label your own photos (see /guide#own-photos).';return}
+  $('cases').replaceChildren(...data.cases.map(c=>h('div',{class:'case'},h('img',{src:img(c),alt:c.title}),h('div',{},c.title,h('small',{},c.condition)))))}
+function banner(){
+  const gen=info.dataset.type.startsWith('GENERATED');
+  $('dsbadge').textContent=info.dataset.type;
+  $('banner').textContent=info.mode==='MOCK_FIXTURE'?'Mock mode: scripted predictions. This shows the software working. It is not measured model performance.'
+    :info.dataset.type.startsWith('MEASURED')?'Live mode on measured corruptions of labeled photos. Labels are exact because no pixel moved. These are stress tests of the source photos, so quote them with the source set.'
+    :gen?'Live mode on GENERATED images made by Muse Image. These are stress tests with inherited boxes, not real photos.'
+    :'Live mode: results come from Meta SAM 3.1 on the images in this dataset. Dataset: '+info.dataset.type+'.'}
+async function setDataset(name){
+  ds=name;info=await api('/api/info?dataset='+name);banner();await loadCases();drawModels()}
+async function init(){
+  try{info=await api('/api/info')}catch(e){info=await api('/api/info?dataset=synthetic')}
+  ds=info.datasets.includes(info.default_dataset)?info.default_dataset:'synthetic';
+  $('mode').textContent=info.mode;
+  $('dataset').replaceChildren(...info.datasets.map(n=>h('option',n===ds?{value:n,selected:''}:{value:n},n)));
+  await setDataset(ds);
+  const q=new URLSearchParams(location.search);  // ?run=ID&dataset=NAME reopens a saved report for free
+  if(q.get('run')){if(q.get('dataset')&&info.datasets.includes(q.get('dataset'))){$('dataset').value=q.get('dataset');await setDataset(q.get('dataset'))}
+    const saved=await api('/api/runs/'+encodeURIComponent(q.get('run')));render(saved);$('note').textContent='Loaded saved run '+saved.id}}
+$('dataset').addEventListener('change',e=>setDataset(e.target.value).catch(x=>{$('note').textContent=x.message}));
+$('run').addEventListener('click',async()=>{
+  const b=$('run');b.disabled=true;$('note').textContent='Running...';
+  try{const d=await api('/api/experiment',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({max_steps:Number($('steps').value),dataset:ds})});
+    render(d);$('note').textContent='Saved as run '+d.id}
+  catch(e){$('note').textContent='Error: '+e.message}finally{b.disabled=false}});
+$('stress').addEventListener('click',async()=>{
+  const b=$('stress'),edits=[...document.querySelectorAll('.edits input:checked')].map(i=>i.value),src=ds==='generated'?(info.datasets.includes('real')?'real':'synthetic'):ds;
+  if(!edits.length){$('stressnote').textContent='Pick at least one edit.';return}
+  b.disabled=true;$('stressnote').textContent='Muse Image is editing photos. This can take a minute...';
+  try{const d=await api('/api/stress',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({source:src,edits})});
+    used.add('muse-image-1.0');info=await api('/api/info?dataset=generated');
+    $('dataset').replaceChildren(...info.datasets.map(n=>h('option',n==='generated'?{value:n,selected:''}:{value:n},n)));
+    await setDataset('generated');$('stressnote').textContent=`Made ${d.created.length} variants (about $${d.estimated_cost_usd}). Dataset switched to generated.`}
+  catch(e){$('stressnote').textContent='Failed: '+e.message}finally{b.disabled=false}});
+$('corrupt').addEventListener('click',async()=>{
+  const b=$('corrupt'),src=['generated','corrupted'].includes(ds)?(info.datasets.includes('real')?'real':info.datasets.includes('open')?'open':'synthetic'):ds;
+  b.disabled=true;$('corruptnote').textContent='Making corruptions...';
+  try{const d=await api('/api/corrupt',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({source:src,corruptions:['low_light','noise','blur'],severities:[3,5]})});
+    info=await api('/api/info?dataset=corrupted');
+    $('dataset').replaceChildren(...info.datasets.map(n=>h('option',n==='corrupted'?{value:n,selected:''}:{value:n},n)));
+    await setDataset('corrupted');$('corruptnote').textContent=`Made ${d.created.length} corrupted cases from ${src}. Dataset switched to corrupted.`}
+  catch(e){$('corruptnote').textContent='Failed: '+e.message}finally{b.disabled=false}});
+init().catch(e=>{$('note').textContent='Cannot reach the server ('+e.message+'). Start it with python -m blindspot_ci.cli serve, then reload this page.';$('run').disabled=true;$('cases').textContent='Server not reachable.'});
+</script></body></html>

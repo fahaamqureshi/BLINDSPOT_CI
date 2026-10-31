@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BLINDSPOT CI</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect x=%278%27 y=%278%27 width=%2716%27 height=%2716%27 fill=%27%23c8281c%27 transform=%27rotate(45 16 16)%27/%3E%3C/svg%3E">
+<meta name="description" content="An agent that finds where a vision model misses red safety objects, and scores each miss against a box a person drew.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,700..900&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/site.css">
+</head><body>
+<a class="skip" href="#main">Skip to content</a>
+<nav class="top"><div class="wrap"><b><i></i>BLINDSPOT CI</b>
+ <a href="/" aria-current="page">Overview</a><a href="/demo">Demo</a><a href="/guide">Guide</a><a href="/app">Run a test</a></div></nav>
+
+<main class="wrap" id="main">
+<section class="hero">
+ <div>
+  <h1>Find where your vision model misses the red tag.</h1>
+  <p class="lede">BLINDSPOT CI tests a segmentation model on photos a person has labeled. An AI agent picks which test to run next. Plain Python scores every result. Nothing here is a safety approval.</p>
+  <div class="btns"><a class="btn" href="/demo">Watch a free demo run</a><a class="btn alt" href="/guide">Read the guide</a></div>
+ </div>
+ <div class="play">
+  <svg id="board" viewBox="0 0 480 320" role="group" aria-label="Box overlap playground: a red safety tag with the model box and your label box">
+   <defs><pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="rgba(0,0,0,.12)" stroke-width="1"/></pattern></defs>
+   <rect width="480" height="320" fill="url(#grid)"/>
+   <rect x="210" y="96" width="120" height="132" fill="var(--tag)"/>
+   <circle cx="270" cy="124" r="12" fill="#e8ebee"/>
+   <rect x="228" y="156" width="84" height="8" fill="#e8ebee"/><rect x="228" y="176" width="64" height="8" fill="#e8ebee"/>
+   <rect id="sam" x="206" y="92" width="128" height="140" fill="none" stroke="var(--sam)" stroke-width="5"/>
+   <g id="human" tabindex="0" role="group" aria-label="Your label box. Arrow keys move it, shift and arrow keys resize it." style="cursor:move">
+    <rect id="hrect" x="150" y="70" width="120" height="120" fill="rgba(168,111,0,.12)" stroke="var(--human)" stroke-width="5" stroke-dasharray="14 8"/>
+    <circle id="hgrip" cx="270" cy="190" r="22" fill="transparent" style="cursor:nwse-resize"/><circle id="hdot" cx="270" cy="190" r="11" fill="var(--human)" pointer-events="none"/>
+   </g>
+  </svg>
+  <div class="readout" role="status"><output id="iou" aria-labelledby="iou-label">0.00</output><span id="iou-label">overlap (IoU)</span><span id="verdict" class="verdict fail">FAIL</span></div>
+  <div class="key"><span style="--c:var(--sam)">Model box</span><span style="--c:var(--human)">Your label (drag me)</span></div>
+  <p>Drag the amber box, or focus it and use the arrow keys. A test passes when the overlap is at least 0.35. This is the scorer's default rule.</p>
+ </div>
+</section>
+
+<section>
+ <h2>What it has found so far</h2>
+ <p>Every number below comes from a saved run that you can reopen. Labels came from people, never from the models. The tests ran on SAM 3.1 through Meta's API.</p>
+ <div class="tablewrap" tabindex="0" role="region" aria-label="Results by test set"><table>
+  <tr><th>Test set</th><th>Result</th><th>What to take from it</th></tr>
+  <tr><td>Open Images photos: fire hydrants and stop signs, 24 photos</td><td class="num">20 of 22</td><td>The two misses are look-alikes the model boxed by mistake (a road sign, a metal object). Two doubtful labels were set aside first; before that it was 20 of 24 (64% to 93%). One person made that call and nobody else reviewed it. After it, the 95% interval is 72% to 98%.</td></tr>
+  <tr><td>Harder Open Images set: dark, cut-off and look-alike scenes, 21 photos</td><td class="num">20 of 21</td><td>The miss is a dark traffic light. Only one hard negative (a road sign with no stop sign) survived, so false alarms are barely tested here. Tests ran in a scripted order, not chosen by the agent.</td></tr>
+  <tr><td>Real video frames from 14 DAVIS clips, 112 frames</td><td class="num">111 of 112</td><td>The miss is a small soccer ball. Frames in one clip look alike, so the real sample is about 14 clips. Boat frames had the lowest overlap (about 0.70 to 0.75) but still passed. The objects are large, none left the frame, and tracking was not tested. Scripted order.</td></tr>
+  <tr><td>Measured corruptions (low light, blur, JPEG, contrast), 22 tests</td><td class="num">22 of 22</td><td>The 22 tests came from 5 photos that had already passed, and the agent stopped at 22 of 40. This shows no failure in those 22. It does not show the other 18 would pass (interval about 85% to 100%).</td></tr>
+  <tr><td>Did the agent beat a random test order?</td><td class="num">No sign</td><td>It found 1 of 4 failures in 8 tests (the 4 counts the two doubtful labels). A random order finds 1.3 on average (p = 0.83).</td></tr>
+ </table></div>
+ <p class="note" style="margin-top:18px">These sets are public photos of hydrants and stop signs, not your maintenance tray tag. A pass is one example that met the threshold. It does not show the model is safe on other photos.</p>
+</section>
+
+<section>
+ <h2>How one test works</h2>
+ <div class="flow">
+  <div><h3>An agent chooses</h3><p>Muse Spark 1.3 reads the list of tests with the labels hidden. It calls <code>choose_next_test</code> or <code>finish_testing</code>. The server rejects any other call.</p></div>
+  <div><h3>The model segments</h3><p>SAM 3.1 gets the photo and a word such as "fire hydrant". It returns boxes and masks.</p></div>
+  <div><h3>Python scores</h3><p>Code compares the best box with the box a person drew. No model grades itself.</p></div>
+  <div><h3>You get a report</h3><p>Pass counts with uncertainty, every failure with its photo, and an evaluation card you can download.</p></div>
+ </div>
+ <p style="margin-top:18px">Three more Meta models help around the edges: Muse Image makes labeled dark and blurry variants, Muse Voice Transcribe turns a spoken reviewer note into text, and Muse Wonder writes a plain-language audit. None of them can change a score.</p>
+</section>
+
+<section>
+ <h2>Try it yourself</h2>
+ <div class="cols">
+  <div><h3>Free and offline</h3><p>The demo uses scripted answers on five drawings. It costs nothing and needs no key. It proves the software works. It says nothing about SAM.</p><p><a class="btn" href="/demo">Open the demo</a></p></div>
+  <div><h3>Live with your key</h3><p>Add a Meta key to <code>.env</code>, switch the provider to <code>meta</code> and run the full loop on labeled photos. A live run costs a few cents.</p><p><a class="btn alt" href="/app">Open the test tool</a></p></div>
+  <div><h3>Your own photos</h3><p>Draw a box on each photo with the local labeling tool, import them and run the same tests on your tray tag.</p><p><a class="btn alt" href="/guide#own-photos">See the steps</a></p></div>
+ </div>
+</section>
+</main>
+
+<footer><div class="wrap">BLINDSPOT CI is a bounded evaluation, not a safety approval. Results hold for the listed models, prompts and dates only. Built for the Meta hackathon.</div></footer>
+
+<script>
+(()=>{const NS='http://www.w3.org/2000/svg',svg=document.getElementById('board'),hr=document.getElementById('hrect'),grip=document.getElementById('hgrip'),dot=document.getElementById('hdot'),g=document.getElementById('human');
+const SAM=[206,92,334,232],MIN=24;let b=[150,70,270,190];
+function iou(a,c){const w=Math.max(0,Math.min(a[2],c[2])-Math.max(a[0],c[0])),h=Math.max(0,Math.min(a[3],c[3])-Math.max(a[1],c[1])),i=w*h,u=(a[2]-a[0])*(a[3]-a[1])+(c[2]-c[0])*(c[3]-c[1])-i;return u?i/u:0}
+function draw(){hr.setAttribute('x',b[0]);hr.setAttribute('y',b[1]);hr.setAttribute('width',b[2]-b[0]);hr.setAttribute('height',b[3]-b[1]);grip.setAttribute('cx',b[2]);grip.setAttribute('cy',b[3]);dot.setAttribute('cx',b[2]);dot.setAttribute('cy',b[3]);
+ const v=iou(b,SAM),ok=v>=0.35;document.getElementById('iou').textContent=v.toFixed(2);const t=document.getElementById('verdict');t.textContent=ok?'PASS':'FAIL';t.className='verdict '+(ok?'pass':'fail')}
+function pt(e){const p=svg.createSVGPoint();p.x=e.clientX;p.y=e.clientY;return p.matrixTransform(svg.getScreenCTM().inverse())}
+const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));let mode=null,start=null,orig=null;
+g.addEventListener('pointerdown',e=>{mode=e.target===grip?'size':'move';start=pt(e);orig=b.slice();g.setPointerCapture(e.pointerId);e.preventDefault()});
+g.addEventListener('pointermove',e=>{if(!mode)return;const p=pt(e),dx=p.x-start.x,dy=p.y-start.y;
+ if(mode==='move'){const w=orig[2]-orig[0],h=orig[3]-orig[1],x=clamp(orig[0]+dx,0,480-w),y=clamp(orig[1]+dy,0,320-h);b=[x,y,x+w,y+h]}
+ else b=[orig[0],orig[1],clamp(orig[2]+dx,orig[0]+MIN,480),clamp(orig[3]+dy,orig[1]+MIN,320)];draw()});
+g.addEventListener('pointerup',()=>{mode=null});g.addEventListener('pointercancel',()=>{mode=null});
+g.addEventListener('keydown',e=>{const s=e.shiftKey?'size':'move',d={ArrowLeft:[-8,0],ArrowRight:[8,0],ArrowUp:[0,-8],ArrowDown:[0,8]}[e.key];if(!d)return;e.preventDefault();
+ if(s==='move'){const w=b[2]-b[0],h=b[3]-b[1],x=clamp(b[0]+d[0],0,480-w),y=clamp(b[1]+d[1],0,320-h);b=[x,y,x+w,y+h]}
+ else b=[b[0],b[1],clamp(b[2]+d[0],b[0]+MIN,480),clamp(b[3]+d[1],b[1]+MIN,320)];draw()});
+draw()})();
+</script>
+</body></html>

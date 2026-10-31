@@ -1,0 +1,32 @@
+{
+  "warehouse_001": [
+    {
+      "label": "person",
+      "severity": "medium"
+    },
+    {
+      "label": "safety_sign",
+      "severity": "medium"
+    },
+    {
+      "label": "fire_extinguisher",
+      "severity": "high"
+    }
+  ],
+  "lab_002": [
+    {
+      "label": "beaker",
+      "severity": "low"
+    },
+    {
+      "label": "warning_label",
+      "severity": "high"
+    }
+  ],
+  "corridor_003": [
+    {
+      "label": "exit_sign",
+      "severity": "high"
+    }
+  ]
+}

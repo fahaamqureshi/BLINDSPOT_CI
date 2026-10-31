@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Demo - BLINDSPOT CI</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect x=%278%27 y=%278%27 width=%2716%27 height=%2716%27 fill=%27%23c8281c%27 transform=%27rotate(45 16 16)%27/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,700..900&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/site.css">
+</head><body>
+<a class="skip" href="#main">Skip to content</a>
+<nav class="top"><div class="wrap"><b><i></i>BLINDSPOT CI</b>
+ <a href="/">Overview</a><a href="/demo" aria-current="page">Demo</a><a href="/guide">Guide</a><a href="/app">Run a test</a></div></nav>
+<main class="wrap" id="main" style="padding-top:36px;padding-bottom:60px">
+<h1 style="font-size:clamp(36px,5vw,56px)">Free demo</h1>
+<p class="lede">Five test photos, one agent, one scorer. Press Run and read each step: why the agent picked it, what the model returned and how it scored.</p>
+<div id="banner" class="banner">Checking the server...</div>
+<div class="btns" style="margin:0 0 24px"><button id="run" class="btn" disabled>Run the demo</button><a class="btn alt" href="/guide#video">Demo script for the video</a></div>
+<div id="out"></div>
+</main>
+<footer><div class="wrap">Scripted answers on drawings show the software working. They say nothing about SAM 3.1.</div></footer>
+<script>
+const $=id=>document.getElementById(id),NS='http://www.w3.org/2000/svg';
+function h(t,a,...k){const e=document.createElement(t);for(const[x,v]of Object.entries(a||{}))e.setAttribute(x,v);for(const c of k)e.append(c);return e}
+function s(t,a){const e=document.createElementNS(NS,t);for(const[x,v]of Object.entries(a))e.setAttribute(x,v);return e}
+async function api(p,o){const r=await fetch(p,o);let d={};try{d=await r.json()}catch(e){}if(!r.ok)throw Error(typeof d.detail==='string'?d.detail:d.detail?JSON.stringify(d.detail):r.status);return d}
+function overlay(st){const w=st.case.width,ht=st.case.height,svg=s('svg',{viewBox:`0 0 ${w} ${ht}`,preserveAspectRatio:'none','aria-hidden':'true'});
+ for(const d of (st.prediction?st.prediction.detections:[])){const m=d.mask;
+  if(m&&m.svg_path&&m.bounds_xyxy){const[l,t,r,b]=m.bounds_xyxy;svg.append(s('path',{d:m.svg_path,transform:`translate(${l} ${t}) scale(${(r-l)/m.width} ${(b-t)/m.height})`,fill:'rgba(11,124,134,.45)'}))}
+  if(d.bbox){const[x1,y1,x2,y2]=d.bbox;svg.append(s('rect',{x:x1,y:y1,width:x2-x1,height:y2-y1,fill:'none',stroke:'#0b7c86','stroke-width':Math.max(3,w/150)}))}}
+ const g=st.ground_truth&&st.ground_truth.bbox;if(g){const[x1,y1,x2,y2]=g;svg.append(s('rect',{x:x1,y:y1,width:x2-x1,height:y2-y1,fill:'none',stroke:'#f2b53a','stroke-width':Math.max(3,w/150),'stroke-dasharray':'10 6'}))}
+ return svg}
+function show(run){const out=$('out');out.replaceChildren();
+ out.append(h('p',{class:'small',role:'status'},`Run ${run.id}: ${run.summary.passed} passed, ${run.summary.failed} failed, ${run.summary.tested} tested. Mode ${run.mode}, planner ${run.planner}.`));
+ run.steps.forEach((st,i)=>{const o=st.outcome,p=st.prediction,body=h('div',{class:'body'});
+  body.append(h('h2',{style:'font-size:22px'},`${i+1}. ${st.case.title}`),h('p',{},h('span',{class:'badge '+o.status},o.status)),
+   h('p',{},h('b',{},'Why this test: '),st.decision.reason),h('p',{},h('b',{},'Result: '),o.reason),
+   h('p',{class:'small'},`Condition ${st.case.condition}. IoU ${o.iou===null?'not applicable':o.iou}. Teal is the model, dashed amber is the human label, shown only after scoring.`));
+  const card=h('div',{class:'step'});
+  if(p){const ph=h('div',{class:'photo'},h('img',{src:`/api/cases/${encodeURIComponent(st.case.id)}/image?dataset=synthetic`,alt:st.case.title}));ph.append(overlay(st));card.append(ph)}
+  card.append(body);out.append(card)});
+ out.append(h('p',{},'Next: ',h('a',{href:'/app'},'open the full tool'),' to try your own photos or a live run.'))}
+(async()=>{try{const info=await api('/api/info?dataset=synthetic'),b=$('banner'),btn=$('run');
+ if(info.live_enabled||info.provider!=='mock'){b.textContent='This server is set to live mode, so the free demo is turned off to protect your budget. Use the full tool, or restart the server without a live key.';return}
+ b.textContent='Mock mode: scripted answers on five drawings. This shows the software working. It is not measured model performance.';btn.disabled=false;
+ btn.onclick=async()=>{btn.disabled=true;btn.textContent='Running...';try{show(await api('/api/experiment',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({max_steps:5,dataset:'synthetic'})}))}catch(e){$('out').replaceChildren(h('p',{class:'banner',role:'alert'},'The demo did not run: '+e.message+'. Check that the server is running and try again.'))}finally{btn.disabled=false;btn.textContent='Run the demo again'}}}
+catch(e){$('banner').setAttribute('role','alert');$('banner').textContent='Cannot reach the server: '+e.message+'. Start it with python -m blindspot_ci.cli serve.'}})();
+</script></body></html>
