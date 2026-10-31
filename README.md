@@ -31,8 +31,7 @@ See `docs/gap-analysis.md` for what is missing.
 
 ## Quick start
 
-The package supports Python 3.10 or newer. The quick start uses Python 3.11, which is one of the
-Python versions tested in CI. No GPU, key or network is needed for the offline mode.
+Requires Python 3.11 or newer. No GPU, key or network is needed for the offline mode.
 
 ```powershell
 py -3.11 -m venv .venv
