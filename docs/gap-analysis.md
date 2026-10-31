@@ -25,7 +25,7 @@ by real, human-labeled evidence. The software for that is built and works. The e
   and are kept out of every result.
 - Missing: photos of your actual tray tag. Everything so far is proxy data (hydrants, stop signs, animals).
   If your real use is the tray tag, that data is the single biggest gap, and no tooling replaces it.
-- Live API access is intermittent (it failed again on 2026-11-01). The 132-case COCO set is imported but has not been run live.
+- Live API access is intermittent (it failed again on 2026-11-01). The 132-case COCO set was run live once it returned (`docs/results-coco.md`).
 
 ## What serious teams and standards ask for, against what exists
 
@@ -56,6 +56,7 @@ so the weakest section sets the grade. Here monitoring is the weakest.
 | Open Images, fire hydrant and stop sign | Yes | 24 photos, 22 scored | 22 |
 | Harder Open Images | Yes | 21 photos | 21, and only 1 hard negative |
 | DAVIS video frames | Yes | 112 frames | about 14 clips |
+| COCO val2017 | Yes | 132 photos | 10 to 30 per condition |
 | Corruptions of real photos | Measured, not generated | 22 tests from 5 photos | 5 |
 | Free demo drawings | No, drawings | 5 | not evidence |
 

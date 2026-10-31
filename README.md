@@ -24,6 +24,7 @@ Real, human-labeled photos and video only. Details and caveats are in `docs/`.
 | Open Images | fire hydrants, stop signs | 22 scored | 20 | two labels adjudicated by the owner, originals kept |
 | Harder Open Images | low light, small, truncated | 21 | 20 | one dark traffic light missed |
 | DAVIS 2017 video | 112 frames, 14 clips | 112 | 111 | mean mask J 0.926 against human masks |
+| COCO val2017 | hydrants, stop signs, traffic lights | 132 | 119 | weakest slice is low light, 6 of 10 |
 
 These samples are small and mostly single-annotator. A pass rate here is not a failure rate you can quote.
 See `docs/gap-analysis.md` for what is missing.
@@ -165,6 +166,7 @@ The image runs as a non-root user on the mock provider. Pass a key only for a lo
 - `docs/dataset.md`: photograph, label and import your own evidence set
 - `docs/results-open-images.md`: live result on real Open Images photos
 - `docs/results-hard-and-video.md`: harder photos and DAVIS video frames, with limits
+- `docs/results-coco.md`: 132 COCO val2017 cases with a low-light weak spot
 - `docs/gap-analysis.md`: what is missing against what standards and strong teams ask for
 - `docs/deploy-and-readiness.md`: run and deploy notes, review findings, open items
 - `docs/research-and-standards.md`: sources behind the design
