@@ -418,6 +418,9 @@ def main() -> None:
     cr = sub.add_parser("compare-runs", help="regression gate: candidate run versus baseline run on the same cases")
     cr.add_argument("--baseline", required=True)
     cr.add_argument("--candidate", required=True)
+    cv = sub.add_parser("coverage", help="case counts per dataset and condition, no model calls")
+    cv.add_argument("--dataset")
+    cv.add_argument("--format", choices=["text", "markdown"], default="text")
     cl = sub.add_parser("compare-labels", help="agreement between two people who labeled the same photos")
     cl.add_argument("first")
     cl.add_argument("second")
@@ -484,6 +487,11 @@ def main() -> None:
         return
     if args.command == "corrupt-gen":
         raise SystemExit(corrupt_gen(args))
+    if args.command == "coverage":
+        from blindspot_ci.experiment.coverage import load_matrix, render
+
+        print(render(load_matrix(args.dataset), args.format))
+        return
     if args.command == "card":
         raise SystemExit(write_card(args))
     if args.command == "compare-runs":

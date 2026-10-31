@@ -91,6 +91,7 @@ python -m blindspot_ci.cli card --run <id>             # evaluation card
 python -m blindspot_ci.cli compare-agent --run <id>    # agent order against random order
 python -m blindspot_ci.cli compare-runs --baseline <id> --candidate <id>   # paired exact regression gate, exit 1 on a significant regression
 python -m blindspot_ci.cli compare-labels a.json b.json                    # annotator agreement (kappa, IoU)
+python -m blindspot_ci.cli coverage [--dataset NAME]    # case counts per condition, flags thin cells
 python -m blindspot_ci.cli corrupt-gen                 # free, deterministic corruptions of real photos
 python -m blindspot_ci.cli diagnose                    # API check that prints no secrets
 ```

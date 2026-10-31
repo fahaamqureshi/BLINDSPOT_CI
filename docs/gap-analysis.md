@@ -39,7 +39,7 @@ guide and check the standards themselves before quoting them.
 | Enough cases to back a claim | Statistics; SOTIF notes that rare events need large samples | Stated, not met. Claiming under 1% failure needs 299 failure-free independent cases per slice | Collect more scenes, then report counts per slice |
 | Independent labels and a human performance bound | SAM 3 SA-Co Gold uses triple annotation | Missing. One annotator for most labels | Second annotator on at least 30 percent of cases. `compare-labels` now reports agreement and kappa |
 | Mask quality, not only box overlap | Segmentation benchmarks score masks | Done for the video set: mean J 0.93, boats weakest at 0.79 (see `docs/results-hard-and-video.md`). Not possible for Open Images, which has boxes only | Label masks for your tray photos if outline quality matters |
-| Coverage of the conditions that trigger failures | ISO 21448 (SOTIF) triggering conditions | Partial. Conditions are measured but no coverage matrix | List the conditions your tray faces and count cases per cell |
+| Coverage of the conditions that trigger failures | ISO 21448 (SOTIF) triggering conditions | Mostly done. `coverage` counts cases per dataset and condition and flags thin cells | List the conditions your tray faces and fill the empty and thin cells |
 | Data and pipeline checks, reproducible runs | ML Test Score data and infrastructure tests | Mostly done. Image hashes, run ids, replayable cache, CI file | Run the CI once on a real repository |
 | A regression gate between model versions | ML Test Score model tests | Done. `compare-runs` pairs scored cases and uses a two-sided exact sign test | Keep baseline and candidate runs on the same cases, then inspect the regression and fix lists |
 | Monitoring after deployment | ML Test Score monitoring tests | Missing, and out of scope until something is deployed | Log live inputs and re-test on a schedule |
@@ -69,7 +69,7 @@ care about, drawn from the real setting, with two annotators.
 2. Rerun `experiment` live on the tray photos once they exist.
 3. Run `python -m blindspot_ci.cli compare-labels first.json second.json` and fix labels where people disagree.
 4. Run `scripts/eval_masks.py` for mask scores on the video set.
-5. Run `compare-runs` on paired baseline and candidate results, then build the coverage matrix once real tray results exist.
+5. Run `compare-runs` on paired baseline and candidate results, then run `python -m blindspot_ci.cli coverage` and fill the empty and thin cells.
 
 ## Sources
 
