@@ -32,3 +32,32 @@ must remain outside `datasets/` and downloaded data must not be committed.
 The source descriptions include crowded indoor stations and night scenes from elevated viewpoints.
 They are not evidence that one fixed monitoring camera follows a target, so the research use case
 must state that limitation.
+
+## Run the offline plan
+
+The command below reads only the manifest and prints one call per sequence, its frame count and its
+cost. It makes no network call.
+
+    python -m blindspot_ci.cli long-video --manifest DIR/mot20-manifest.json --sequences MOT20-03 MOT20-02 MOT20-05 --budget-usd 4.00 --dry-run
+
+For a live owner-run test, set `BLINDSPOT_PROVIDER=meta`, `LIVE_API_ENABLED=true` and `MODEL_API_KEY`
+in the local environment. The command seeds up to 16 human boxes in one forward tracking call per
+sequence. A shared budget is reserved before each call. There are no retries. A missing setting stops
+the command before network use. Raw streamed text is saved under `artifacts/video-raw` before parsing.
+
+    python -m blindspot_ci.cli long-video --manifest DIR/mot20-manifest.json --sequences MOT20-03 --budget-usd 4.00 --min-iou 0.35
+
+The normal run report is saved under `artifacts/runs`. Full frame results are in the matching
+`.temporal.json` file. Read them without network access:
+
+    python -m blindspot_ci.cli temporal-report --run RUN_ID
+
+The temporal report describes misses, recovery, ten time-bin dropout, condition retention, and the
+luminance range. Frames from one track are strongly correlated, so intervals from this report
+overstate certainty. Dark is relative to each sequence and means little when its luminance range is
+narrow. Use `fixtures/policies/long-video.json` with `release-gate --policy`; it uses the MOT20
+conditions and leaves the default numeric thresholds unchanged.
+
+The provider accepts a video URL directly. If the URL is refused, a future fallback could upload the
+file and use its returned file ID. That is a reasonable compatibility improvement, but it is not part
+of this offline wiring.

@@ -1,0 +1,10 @@
+{
+  "policy_version": "1",
+  "required_conditions": ["occluded", "truncated", "dark", "small_object"],
+  "min_judged_cases": 10,
+  "min_pass_rate": 0.90,
+  "min_cases_per_condition": 29,
+  "max_unscored_share": 0.05,
+  "min_second_annotator_share": 0.30,
+  "min_kappa": 0.60
+}

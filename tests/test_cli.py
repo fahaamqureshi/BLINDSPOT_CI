@@ -1,3 +1,4 @@
+import io
 import json
 import sys
 from dataclasses import replace
@@ -70,3 +71,18 @@ def test_smoke_tools_reports_a_planner_failure(monkeypatch, capsys):
     monkeypatch.setattr(planners.MuseToolPlanner, "choose", refuse)
     assert cli.smoke_tools() == 1
     assert "failed" in capsys.readouterr().out
+
+
+def test_diagnose_replaces_unencodable_reply(monkeypatch):
+    class Cfg:
+        model_api_key = "LLM_test_key"
+        meta_base_url = "https://example.invalid/v1"
+
+    output = io.BytesIO()
+    stream = io.TextIOWrapper(output, encoding="cp1252")
+    monkeypatch.setattr(cli, "Settings", Cfg)
+    monkeypatch.setattr(cli, "_raw_call", lambda *args, **kwargs: "reply \U00002728")
+    monkeypatch.setattr(sys, "stdout", stream)
+    assert cli.diagnose() == 0
+    stream.flush()
+    assert "reply ?" in output.getvalue().decode("cp1252")

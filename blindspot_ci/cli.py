@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 
 import uvicorn
 
@@ -85,29 +86,38 @@ def _raw_call(method: str, url: str, key: str, body: dict | None = None) -> str:
 
 def diagnose() -> int:
     """Separate 'bad key' from 'no model access' from 'wrong model name'. Prints no secrets."""
+    def safe_print(*values, sep=" ", end="\n"):
+        text = sep.join(str(value) for value in values) + end
+        encoding = getattr(sys.stdout, "encoding", None) or "utf-8"
+        try:
+            text.encode(encoding)
+        except (LookupError, UnicodeEncodeError):
+            text = text.encode(encoding, errors="replace").decode(encoding, errors="replace")
+        sys.stdout.write(text)
+
     cfg = Settings()
     if not cfg.model_api_key:
-        print("MODEL_API_KEY is not set.")
+        safe_print("MODEL_API_KEY is not set.")
         return 2
     key, base = cfg.model_api_key, cfg.meta_base_url.rstrip("/")
-    print(f"key length {len(key)}, starts with 'LLM_' (official format): {key.startswith('LLM_')}, "
-          f"starts with 'LLM|' (old format): {key.startswith('LLM|')}, underscores {key.count('_')}, "
-          f"pipes {key.count('|')}, hyphens {key.count('-')}, letters/digits only: {key.isalnum()}, "
-          f"base {base}\n")
+    safe_print(f"key length {len(key)}, starts with 'LLM_' (official format): {key.startswith('LLM_')}, "
+               f"starts with 'LLM|' (old format): {key.startswith('LLM|')}, underscores {key.count('_')}, "
+               f"pipes {key.count('|')}, hyphens {key.count('-')}, letters/digits only: {key.isalnum()}, "
+               f"base {base}\n")
     fake = "LLM|0|invalidinvalidinvalid"
     body = {"input": "Return the word READY.", "store": False, "max_output_tokens": 16}
-    print("1) Fake key, model muse-spark-1.3:")
-    print("  ", _raw_call("POST", f"{base}/responses", fake, {**body, "model": "muse-spark-1.3"}))
-    print("2) Your key, GET /models:")
-    print("  ", _raw_call("GET", f"{base}/models", key))
-    print("3) Your key, other model names:")
+    safe_print("1) Fake key, model muse-spark-1.3:")
+    safe_print("  ", _raw_call("POST", f"{base}/responses", fake, {**body, "model": "muse-spark-1.3"}))
+    safe_print("2) Your key, GET /models:")
+    safe_print("  ", _raw_call("GET", f"{base}/models", key))
+    safe_print("3) Your key, other model names:")
     for name in ["muse-spark", "muse-spark-latest", "sam-3.1", "muse-image-1.0", "muse-wonder-1.0"]:
-        print(f"   {name:18}", _raw_call("POST", f"{base}/responses", key, {**body, "model": name})[:150])
-    print("4) Your key, no model field:")
-    print("  ", _raw_call("POST", f"{base}/responses", key, body))
-    print("5) Chat Completions route, muse-spark-1.3:")
-    print("  ", _raw_call("POST", f"{base}/chat/completions", key,
-                          {"model": "muse-spark-1.3", "messages": [{"role": "user", "content": "READY?"}]}))
+        safe_print(f"   {name:18}", _raw_call("POST", f"{base}/responses", key, {**body, "model": name})[:150])
+    safe_print("4) Your key, no model field:")
+    safe_print("  ", _raw_call("POST", f"{base}/responses", key, body))
+    safe_print("5) Chat Completions route, muse-spark-1.3:")
+    safe_print("  ", _raw_call("POST", f"{base}/chat/completions", key,
+                              {"model": "muse-spark-1.3", "messages": [{"role": "user", "content": "READY?"}]}))
     return 0
 
 
@@ -248,6 +258,62 @@ def release_gate(args) -> int:
         Path(args.out).write_text(text + "\n", encoding="utf-8")
     print(text)
     return rg.EXIT_CODES[report["decision"]]
+
+
+def long_video(args) -> int:
+    from blindspot_ci.experiment.temporal import load_manifest, plan_long_video, run_long_video
+
+    try:
+        manifest = load_manifest(args.manifest)
+        plan = plan_long_video(manifest, args.sequences, args.budget_usd)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        print(f"long-video failed: {exc}")
+        return 2
+    print("Long-video plan")
+    for item in plan:
+        print(f"{item['sequence']}: {item['targets']} targets, {item['frames']} frames, "
+              f"cost ${item['cost_usd']:.6f}, video {item['video_url']}")
+    total = sum(item["cost_usd"] for item in plan)
+    print(f"total: {sum(item['frames'] for item in plan)} frames, exact cost ${total:.6f}")
+    if args.dry_run:
+        print("dry run: no network call made")
+        return 0
+
+    cfg = Settings()
+    if cfg.provider != "meta":
+        print("long-video requires BLINDSPOT_PROVIDER=meta before any network use")
+        return 2
+    if not cfg.live_api_enabled:
+        print("long-video requires LIVE_API_ENABLED=true before any network use")
+        return 2
+    if not cfg.model_api_key:
+        print("long-video requires MODEL_API_KEY before any network use")
+        return 2
+    from blindspot_ci.providers.sam_video import MetaSam31VideoAdapter
+
+    try:
+        adapter = MetaSam31VideoAdapter(cfg.model_api_key, cfg.meta_base_url)
+        report = run_long_video(manifest, args.sequences, args.budget_usd, args.min_iou,
+                                runs_dir=cfg.runs_dir, adapter=adapter)
+    except (OSError, ValueError, RuntimeError) as exc:
+        print(f"long-video failed: {exc}")
+        return 1
+    print(f"saved run {report['id']}: {report['calls']} call(s), "
+          f"estimated cost ${report['estimated_cost_usd']:.6f}")
+    for error in report["errors"]:
+        print(f"error: {error}")
+    return 1 if report["errors"] else 0
+
+
+def temporal_report_command(args) -> int:
+    from blindspot_ci.experiment.temporal import temporal_report
+
+    try:
+        print(temporal_report(Settings().runs_dir, args.run))
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        print(f"temporal-report failed: {exc}")
+        return 1
+    return 0
 
 
 def compare_agent(args) -> int:
@@ -467,6 +533,14 @@ def main() -> None:
     rg.add_argument("--agreement", help="compare-labels JSON output")
     rg.add_argument("--format", choices=["text", "markdown", "json"], default="text")
     rg.add_argument("--out")
+    lv = sub.add_parser("long-video", help="seed and score MOT20 long-video tracking")
+    lv.add_argument("--manifest", required=True)
+    lv.add_argument("--sequences", nargs="+", required=True)
+    lv.add_argument("--budget-usd", type=float, required=True)
+    lv.add_argument("--dry-run", action="store_true")
+    lv.add_argument("--min-iou", type=float, default=0.35)
+    tv = sub.add_parser("temporal-report", help="read a saved long-video temporal report")
+    tv.add_argument("--run", required=True)
     cl = sub.add_parser("compare-labels", help="agreement between two people who labeled the same photos")
     cl.add_argument("first")
     cl.add_argument("second")
@@ -559,6 +633,10 @@ def main() -> None:
         raise SystemExit(1 if report["verdict"].startswith("FAIL") else 0)
     if args.command == "release-gate":
         raise SystemExit(release_gate(args))
+    if args.command == "long-video":
+        raise SystemExit(long_video(args))
+    if args.command == "temporal-report":
+        raise SystemExit(temporal_report_command(args))
     if args.command == "compare-labels":
         import json as _json
         from pathlib import Path as _Path
