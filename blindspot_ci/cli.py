@@ -230,6 +230,26 @@ def write_card(args) -> int:
     return 0
 
 
+def release_gate(args) -> int:
+    """Exit 0 GO_CANDIDATE, 1 NO_GO, 2 NEEDS_REVIEW, 3 DEMO_ONLY, 4 input error."""
+    from pathlib import Path
+
+    from blindspot_ci.experiment import release_gate as rg
+
+    try:
+        policy = rg.load_policy(args.policy)
+        agreement = rg.load_agreement(args.agreement) if args.agreement else None
+        report = rg.evaluate_file(Settings().runs_dir, args.run, policy, agreement)
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        print(f"release-gate failed: {exc}")
+        return 4
+    text = rg.render(report, args.format)
+    if args.out:
+        Path(args.out).write_text(text + "\n", encoding="utf-8")
+    print(text)
+    return rg.EXIT_CODES[report["decision"]]
+
+
 def compare_agent(args) -> int:
     """Score every case once (cached, so repeats are free), then compare the agent's picks with chance."""
     from types import SimpleNamespace
@@ -441,6 +461,12 @@ def main() -> None:
     cv = sub.add_parser("coverage", help="case counts per dataset and condition, no model calls")
     cv.add_argument("--dataset")
     cv.add_argument("--format", choices=["text", "markdown"], default="text")
+    rg = sub.add_parser("release-gate", help="conservative GO_CANDIDATE, NEEDS_REVIEW, NO_GO or DEMO_ONLY decision for a saved run")
+    rg.add_argument("--run", required=True)
+    rg.add_argument("--policy")
+    rg.add_argument("--agreement", help="compare-labels JSON output")
+    rg.add_argument("--format", choices=["text", "markdown", "json"], default="text")
+    rg.add_argument("--out")
     cl = sub.add_parser("compare-labels", help="agreement between two people who labeled the same photos")
     cl.add_argument("first")
     cl.add_argument("second")
@@ -531,6 +557,8 @@ def main() -> None:
             raise SystemExit(f"compare-runs failed: {exc}") from exc
         print(_json.dumps(report, indent=2))
         raise SystemExit(1 if report["verdict"].startswith("FAIL") else 0)
+    if args.command == "release-gate":
+        raise SystemExit(release_gate(args))
     if args.command == "compare-labels":
         import json as _json
         from pathlib import Path as _Path

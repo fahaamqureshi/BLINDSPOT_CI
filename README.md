@@ -94,6 +94,7 @@ python -m blindspot_ci.cli compare-runs --baseline <id> --candidate <id>   # pai
 python -m blindspot_ci.cli compare-labels a.json b.json                    # annotator agreement (kappa, IoU)
 python -m blindspot_ci.cli coverage [--dataset NAME]    # case counts per condition, flags thin cells
 python -m blindspot_ci.cli corrupt-gen                 # free, deterministic corruptions of real photos
+python -m blindspot_ci.cli release-gate --run <id> [--policy P] [--agreement A]   # GO_CANDIDATE, NEEDS_REVIEW, NO_GO or DEMO_ONLY; see docs/release-gate.md
 python -m blindspot_ci.cli diagnose                    # API check that prints no secrets
 ```
 
