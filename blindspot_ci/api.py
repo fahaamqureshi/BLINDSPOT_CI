@@ -17,7 +17,7 @@ from blindspot_ci.experiment.card import build_card
 from blindspot_ci.experiment.cases import MANIFESTS, image_path, load_named_dataset, public_case
 from blindspot_ci.experiment.corruptions import generate_corruptions
 from blindspot_ci.experiment.reviews import add_note, load_extras, save_audit
-from blindspot_ci.experiment.runner import load_run, source_label
+from blindspot_ci.experiment.runner import RUN_ID, load_run, source_label
 from blindspot_ci.experiment.stress import generate_variants, write_manifest
 from blindspot_ci.factory import build_agent, build_experiment
 from blindspot_ci.providers.meta import MetaApiError
@@ -32,6 +32,7 @@ from blindspot_ci.providers.meta_extras import (
 from blindspot_ci.security import install_local_guard
 
 WEB = Path(__file__).parent / "web"
+EXAMPLES = Path(__file__).resolve().parent.parent / "fixtures" / "examples"
 app = FastAPI(title="BLINDSPOT CI", version="0.1.0")
 install_local_guard(app)
 
@@ -133,6 +134,14 @@ def _live(build):
         raise HTTPException(403, str(exc)) from exc
 
 
+def _runs_dir_for(run_id: str) -> Path:
+    """Saved runs first; the committed example runs answer when the id is not saved locally. Read only."""
+    runs = Settings().runs_dir
+    if RUN_ID.match(run_id) and not (runs / f"{run_id}.json").is_file() and (EXAMPLES / f"{run_id}.json").is_file():
+        return EXAMPLES
+    return runs
+
+
 def _run_or_404(run_id: str) -> None:
     try:
         load_run(Settings().runs_dir, run_id)
@@ -170,7 +179,14 @@ def case_image(case_id: str, dataset: str | None = None) -> FileResponse:
     case = _dataset(dataset).cases.get(case_id)
     if case is None:
         raise HTTPException(404, "case not found")
-    return FileResponse(image_path(case))
+    try:
+        path = image_path(case)
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    if not path.is_file():
+        raise HTTPException(404, f"photo for case {case_id} is not in this checkout (its licence is not confirmed "
+                                 "for redistribution); the saved results still show the scores")
+    return FileResponse(path)
 
 
 @app.post("/api/experiment")
@@ -195,8 +211,8 @@ def experiment(request: ExperimentRequest) -> dict[str, object]:
 @app.get("/api/runs/{run_id}")
 def run_record(run_id: str) -> dict[str, object]:
     try:
-        report = load_run(Settings().runs_dir, run_id)
-        return {**report, **load_extras(Settings().runs_dir, run_id)}
+        runs = _runs_dir_for(run_id)
+        return {**load_run(runs, run_id), **load_extras(runs, run_id)}
     except (ValueError, FileNotFoundError) as exc:
         raise HTTPException(404, "run not found") from exc
 
@@ -204,9 +220,46 @@ def run_record(run_id: str) -> dict[str, object]:
 @app.get("/api/runs/{run_id}/release-gate")
 def run_release_gate(run_id: str) -> dict[str, object]:
     try:
-        return release_gate.evaluate_file(Settings().runs_dir, run_id, release_gate.load_policy(None))
+        return release_gate.evaluate_file(_runs_dir_for(run_id), run_id, release_gate.load_policy(None))
     except (ValueError, FileNotFoundError) as exc:
         raise HTTPException(404, "run not found") from exc
+
+
+EXAMPLE_TITLES = {"coco-val2017": "Everyday photos (COCO), live run",
+                  "davis-2017-frames": "Video frames (DAVIS), live run"}
+
+
+def _headline(gate: dict[str, object]) -> str:
+    policy = gate["policy"]
+    bar = f"{policy['min_pass_rate']:.2f}"
+    conds = gate["conditions"]
+    names = [f.split(":")[0] for f in gate["failing"]]
+    if not names:
+        names = [n for n, c in conds.items() if c["scored"] < policy["min_cases_per_condition"]]
+        if not names:
+            return str(gate.get("reason") or "no blocking condition found")
+        parts = ", ".join(f"{n} {conds[n]['scored']} scored" for n in names)
+        return f"{parts}; {policy['min_cases_per_condition']} scored needed per condition"
+    return ", ".join(f"{n} {conds[n]['passed']} of {conds[n]['scored']}" for n in names) + f" against a {bar} bar"
+
+
+@app.get("/api/examples")
+def examples() -> list[dict[str, object]]:
+    """Committed real runs, summarised by the release gate. Every number comes from the saved file."""
+    out: list[dict[str, object]] = []
+    policy = release_gate.load_policy(None)
+    for path in sorted(EXAMPLES.glob("*.json")) if EXAMPLES.is_dir() else []:
+        if not RUN_ID.match(path.stem):
+            continue
+        run = load_run(EXAMPLES, path.stem)
+        gate = release_gate.evaluate_file(EXAMPLES, path.stem, policy)
+        summary = run.get("summary") or {}
+        dataset = run.get("dataset") or {}
+        out.append({"id": run["id"], "title": EXAMPLE_TITLES.get(dataset.get("id"), str(dataset.get("id"))),
+                    "dataset": dataset.get("id"), "mode": run.get("mode"), "decision": gate["decision"],
+                    "headline": _headline(gate), "passed": summary.get("passed"), "scored": summary.get("scored"),
+                    "cost_usd": run.get("estimated_cost_usd"), "tests": len(run.get("steps") or [])})
+    return out
 
 
 @app.post("/api/stress")
@@ -250,7 +303,8 @@ def corrupt(request: CorruptRequest) -> dict[str, object]:
 def run_card(run_id: str) -> PlainTextResponse:
     """Evaluation card as Markdown, built by Python from the saved run."""
     try:
-        run = {**load_run(Settings().runs_dir, run_id), **load_extras(Settings().runs_dir, run_id)}
+        runs = _runs_dir_for(run_id)
+        run = {**load_run(runs, run_id), **load_extras(runs, run_id)}
     except (ValueError, FileNotFoundError) as exc:
         raise HTTPException(404, "run not found") from exc
     return PlainTextResponse(build_card(run), media_type="text/markdown; charset=utf-8",
