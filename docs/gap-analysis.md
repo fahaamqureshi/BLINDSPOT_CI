@@ -25,7 +25,7 @@ by real, human-labeled evidence. The software for that is built and works. The e
   and are kept out of every result.
 - Missing: photos of your actual tray tag. Everything so far is proxy data (hydrants, stop signs, animals).
   If your real use is the tray tag, that data is the single biggest gap, and no tooling replaces it.
-- A short API outage on 2026-10-31 has ended. Live calls work again.
+- Live API access is intermittent (it failed again on 2026-11-01). The 132-case COCO set is imported but has not been run live.
 
 ## What serious teams and standards ask for, against what exists
 

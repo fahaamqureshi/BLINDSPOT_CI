@@ -73,8 +73,10 @@ Fixed:
 ## Still open
 
 - No sign-in and no rate limit. Do not expose a live key behind this app.
-- A temporary Meta API outage on 2026-10-31 (every model answered `model_not_found`) has ended. A fresh live
-  check afterwards passed for the agent, SAM 3.1, Muse Wonder and Muse Image. Voice was not rechecked.
+- Live access is intermittent. On 2026-10-31 every model answered `model_not_found` for a while, then worked
+  (a fresh live check passed for the agent, SAM 3.1, Muse Wonder and Muse Image). On 2026-11-01 it failed the same
+  way and `/models` returned an empty list. The key is valid. Run `python -m blindspot_ci.cli diagnose` before any
+  live run. Saved runs and cards are unaffected.
 - The live cache key has no prompt version, on purpose: adding one would make every saved live answer
   miss and cost money to reproduce. If the SAM request format changes, delete `.blindspot-cache` before
   a live run. The mock key already follows the scripted fixtures.
