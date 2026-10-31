@@ -31,7 +31,8 @@ See `docs/gap-analysis.md` for what is missing.
 
 ## Quick start
 
-Requires Python 3.11 or newer. No GPU, key or network is needed for the offline mode.
+The package supports Python 3.10 or newer. The quick start uses Python 3.11, which is one of the
+Python versions tested in CI. No GPU, key or network is needed for the offline mode.
 
 ```powershell
 py -3.11 -m venv .venv
@@ -89,7 +90,7 @@ python -m blindspot_ci.cli import-photos FILE --dataset real|open|hard|video|coc
 python -m blindspot_ci.cli label                       # draw boxes on your own photos
 python -m blindspot_ci.cli card --run <id>             # evaluation card
 python -m blindspot_ci.cli compare-agent --run <id>    # agent order against random order
-python -m blindspot_ci.cli compare-runs --baseline <id> --candidate <id>   # regression gate, exit 1 on a drop
+python -m blindspot_ci.cli compare-runs --baseline <id> --candidate <id>   # paired exact regression gate, exit 1 on a significant regression
 python -m blindspot_ci.cli compare-labels a.json b.json                    # annotator agreement (kappa, IoU)
 python -m blindspot_ci.cli corrupt-gen                 # free, deterministic corruptions of real photos
 python -m blindspot_ci.cli diagnose                    # API check that prints no secrets

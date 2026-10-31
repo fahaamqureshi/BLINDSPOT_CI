@@ -41,7 +41,7 @@ guide and check the standards themselves before quoting them.
 | Mask quality, not only box overlap | Segmentation benchmarks score masks | Done for the video set: mean J 0.93, boats weakest at 0.79 (see `docs/results-hard-and-video.md`). Not possible for Open Images, which has boxes only | Label masks for your tray photos if outline quality matters |
 | Coverage of the conditions that trigger failures | ISO 21448 (SOTIF) triggering conditions | Partial. Conditions are measured but no coverage matrix | List the conditions your tray faces and count cases per cell |
 | Data and pipeline checks, reproducible runs | ML Test Score data and infrastructure tests | Mostly done. Image hashes, run ids, replayable cache, CI file | Run the CI once on a real repository |
-| A regression gate between model versions | ML Test Score model tests | Missing | A `compare-runs` command that fails when a pass rate drops beyond its interval |
+| A regression gate between model versions | ML Test Score model tests | Done. `compare-runs` pairs scored cases and uses a two-sided exact sign test | Keep baseline and candidate runs on the same cases, then inspect the regression and fix lists |
 | Monitoring after deployment | ML Test Score monitoring tests | Missing, and out of scope until something is deployed | Log live inputs and re-test on a schedule |
 | Human review of discovered failure slices | Johnson et al. found that a coherent slice does not mean people can explain it | Done by design. The report shows each failure with its photo for a person to judge | None |
 | Security, privacy, spend limits | OWASP guidance for LLM agents; the security review done here | Done for local use. No sign-in, so public use must stay mock-only | Add sign-in before any public live deployment |
@@ -69,7 +69,7 @@ care about, drawn from the real setting, with two annotators.
 2. Rerun `experiment` live on the tray photos once they exist.
 3. Run `python -m blindspot_ci.cli compare-labels first.json second.json` and fix labels where people disagree.
 4. Run `scripts/eval_masks.py` for mask scores on the video set.
-5. Build the regression gate and the coverage matrix once real tray results exist.
+5. Run `compare-runs` on paired baseline and candidate results, then build the coverage matrix once real tray results exist.
 
 ## Sources
 
