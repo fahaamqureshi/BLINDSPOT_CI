@@ -46,3 +46,33 @@ def test_cli_exit_code_zero(monkeypatch, capsys):
     monkeypatch.setattr("sys.argv", ["blindspot", "coverage"])
     cli.main()
     assert "Empty cells" in capsys.readouterr().out
+
+
+def test_severity_variants_grouped_into_family():
+    m = build_matrix({"real": _ds("REAL", ["blur_s3", "blur_s5", "contrast_s3", "jpeg_s5",
+                                          "low_light_s3", "low_light_s5", "lookalike", "lookalike_scene"])})
+    cells = m["rows"]["real"]["cells"]
+    assert cells["blur"] == 2 and cells["contrast"] == 1 and cells["jpeg"] == 1 and cells["low_light"] == 2
+    assert cells["lookalike"] == 1 and cells["lookalike_scene"] == 1
+    assert not any("_s3" in c or "_s5" in c for c in m["conditions"])
+
+
+def test_pooled_excludes_synthetic_and_derived():
+    m = build_matrix({"a": _ds("REAL", ["normal"] * 3), "b": _ds("REAL", ["normal"] * 2 + ["blur_s3"]),
+                      "syn": _ds("SYNTHETIC_X", ["normal"] * 9), "corrupted": _ds("REAL", ["normal"] * 7),
+                      "generated": _ds("REAL", ["normal"] * 5)})
+    assert m["pooled"]["normal"] == 5 and m["pooled"]["blur"] == 1 and m["pooled_datasets"] == 2
+    out = render(m)
+    assert "Pooled totals" in out and "different photos and labelers; read as a rough guide." in out
+    assert "blur 1*" in out
+    assert "no independent real datasets" in render(build_matrix({"syn": _ds("SYNTHETIC_X", ["normal"])}))
+
+
+def test_empty_list_is_compact():
+    m = build_matrix({"real": _ds("REAL", ["normal", "blur_s3"]), "none": _ds("REAL", []),
+                      "other": _ds("REAL", ["normal"])})
+    assert "real/absent" in m["empty"] and "real/blur" not in m["empty"]
+    assert not any(e.startswith("none/") for e in m["empty"])
+    total_empty = sum(1 for r in m["rows"].values() for v in r["cells"].values() if v == 0)
+    assert m["other_empty"] == total_empty - len(m["empty"]) and m["other_empty"] > 0
+    assert f"plus {m['other_empty']} other empty cells" in render(m)

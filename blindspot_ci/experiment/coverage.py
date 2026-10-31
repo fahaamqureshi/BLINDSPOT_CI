@@ -5,6 +5,7 @@ confidence, the failure-free cases needed to say the failure rate is below that 
 """
 from __future__ import annotations
 
+import re
 from collections import Counter
 from typing import Any
 
@@ -15,11 +16,18 @@ CORE_CONDITIONS = ("normal", "low_light", "small_object", "truncated", "lookalik
 THIN_FAILURE_RATE = 0.10
 MIN_CASES_PER_CELL = cases_needed(THIN_FAILURE_RATE)
 SYNTHETIC_NAMES = ("synthetic", "generated")
+DERIVED_NAMES = ("corrupted", "generated")
+POOLED_NOTE = "Pooled across datasets with different photos and labelers; read as a rough guide."
+
+
+def condition_family(condition: str) -> str:
+    """Group severity variants such as blur_s3 and blur_s5 into one family."""
+    return re.sub(r"_s\d+$", "", condition)
 
 
 def build_matrix(datasets: dict[str, Any], unavailable: dict[str, str] | None = None) -> dict[str, Any]:
     """datasets maps a name to an already loaded Dataset. Only ids and counts are kept."""
-    counts = {name: Counter(case.condition for case in ds.cases.values()) for name, ds in datasets.items()}
+    counts = {name: Counter(condition_family(case.condition) for case in ds.cases.values()) for name, ds in datasets.items()}
     conditions = sorted(set(CORE_CONDITIONS).union(*counts.values()))
     rows = {}
     for name in sorted(counts):
@@ -27,11 +35,16 @@ def build_matrix(datasets: dict[str, Any], unavailable: dict[str, str] | None = 
         rows[name] = {"synthetic": "SYNTHETIC" in datasets[name].kind.upper() or name in SYNTHETIC_NAMES,
                       "cells": cells, "total": sum(cells.values())}
     totals = {c: sum(r["cells"][c] for r in rows.values()) for c in conditions}
-    empty = sorted(f"{n}/{c}" for n, r in rows.items() for c in conditions if r["cells"][c] == 0)
+    empty = sorted(f"{n}/{c}" for n, r in rows.items() if r["total"] for c in CORE_CONDITIONS
+                   if r["cells"][c] == 0)
+    other_empty = sum(1 for r in rows.values() for c in conditions if r["cells"][c] == 0) - len(empty)
+    independent = [r for n, r in rows.items() if not r["synthetic"] and n not in DERIVED_NAMES]
+    pooled = {c: sum(r["cells"][c] for r in independent) for c in conditions}
     thin = sorted(f"{n}/{c}" for n, r in rows.items() for c in conditions
                   if 0 < r["cells"][c] < MIN_CASES_PER_CELL)
     return {"min_cases_per_cell": MIN_CASES_PER_CELL, "conditions": conditions, "rows": rows,
-            "condition_totals": totals, "empty": empty, "thin": thin,
+            "condition_totals": totals, "empty": empty, "other_empty": other_empty, "thin": thin,
+            "pooled": pooled, "pooled_datasets": len(independent),
             "unavailable": dict(sorted((unavailable or {}).items()))}
 
 
@@ -68,8 +81,17 @@ def render(matrix: dict[str, Any], fmt: str = "text") -> str:
     else:
         widths = [max(len(r[i]) for r in [header, *body]) for i in range(len(header))]
         lines = ["  ".join(v.ljust(w) for v, w in zip(r, widths, strict=True)).rstrip() for r in [header, *body]]
+    if matrix["pooled_datasets"]:
+        pooled = ", ".join(f"{c} {n}{'*' if n < minimum else ''}" for c, n in matrix["pooled"].items())
+        lines += ["", f"Pooled totals (independent real datasets, {matrix['pooled_datasets']}): {pooled}.",
+                  POOLED_NOTE]
+    else:
+        lines += ["", "Pooled totals: none, no independent real datasets."]
+    empty_line = _list("Empty cells", matrix["empty"])
+    if matrix["other_empty"]:
+        empty_line += f" plus {matrix['other_empty']} other empty cells"
     lines += ["", f"A star marks an underpowered cell (fewer than {minimum} cases).",
-              f"{_list('Empty cells', matrix['empty'])}. {_list('Thin cells', matrix['thin'])}."]
+              f"{empty_line}. {_list('Thin cells', matrix['thin'])}."]
     if any(r["synthetic"] for r in matrix["rows"].values()):
         lines.append("Synthetic datasets are development fixtures, not real evidence.")
     for name, why in matrix["unavailable"].items():
