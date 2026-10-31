@@ -89,6 +89,7 @@ python -m blindspot_ci.cli import-photos FILE --dataset real|open|hard|video|coc
 python -m blindspot_ci.cli label                       # draw boxes on your own photos
 python -m blindspot_ci.cli card --run <id>             # evaluation card
 python -m blindspot_ci.cli compare-agent --run <id>    # agent order against random order
+python -m blindspot_ci.cli replay-planner --run <id> --steps K [--planner mock]    # offline policy comparison on saved outcomes
 python -m blindspot_ci.cli compare-runs --baseline <id> --candidate <id>   # paired exact regression gate, exit 1 on a significant regression
 python -m blindspot_ci.cli compare-labels a.json b.json                    # annotator agreement (kappa, IoU)
 python -m blindspot_ci.cli coverage [--dataset NAME]    # case counts per condition, flags thin cells

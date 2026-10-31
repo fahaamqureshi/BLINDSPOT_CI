@@ -40,6 +40,14 @@ Muse rules: one tool call per turn, a known function, a case id that is still un
 stops the run safely and nothing is guessed. Each measured result returns to Muse in a `tool`
 message with the matching call id.
 
+## Planner prompt versions and replay
+
+The Muse planner uses a versioned prompt registry, and each saved run records its planner prompt
+version. The replay command runs a local test-ordering policy against statuses already saved in a run.
+It does not evaluate the model or make network calls. UNKNOWN and ERROR outcomes are excluded. With
+few cases this cannot separate skill from luck. A small p value is suggestive, a large one is
+uninformative.
+
 A SAM mask is local to its box and its SVG path uses mask pixel coordinates, so the page draws it
 with a translate and a scale from mask size to box size. Boxes are half-open.
 

@@ -104,6 +104,7 @@ class ExperimentRunner:
             "id": run_id, "started_at": started, "finished_at": datetime.now(timezone.utc).isoformat(),
             "mode": self._run_mode(steps), "provider": self.provider.name,
             "model": self.provider.model, "planner": self.planner.name,
+            "planner_prompt_version": getattr(self.planner, "prompt_version", None),
             "dataset": {"id": self.dataset.id, "type": self.dataset.kind,
                         "annotation_status": self.dataset.annotation_status},
             "min_iou": self.min_iou, "steps": steps, "errors": errors,

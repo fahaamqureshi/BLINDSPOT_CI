@@ -258,6 +258,26 @@ def compare_agent(args) -> int:
     return 0
 
 
+def replay_planner(args) -> int:
+    """Replay an offline planner against statuses from a saved run."""
+    from blindspot_ci.experiment.planners import MockToolPlanner
+    from blindspot_ci.experiment.replay import ReplayError
+    from blindspot_ci.experiment.replay import replay_planner as run_replay
+    from blindspot_ci.experiment.runner import load_run
+
+    if args.planner != "mock":
+        print("replay-planner failed: MuseToolPlanner is refused because replay makes zero network calls")
+        return 1
+    try:
+        run = load_run(Settings().runs_dir, args.run)
+        result = run_replay(run, MockToolPlanner(), args.steps)
+    except (ReplayError, FileNotFoundError, OSError, ValueError) as exc:
+        print(f"replay-planner failed: {exc}")
+        return 1
+    print(json.dumps(result, indent=2))
+    return 0
+
+
 def transcribe_note(args) -> int:
     from pathlib import Path
 
@@ -426,6 +446,10 @@ def main() -> None:
     cl.add_argument("second")
     ca = sub.add_parser("compare-agent", help="agent's tests versus random order, exact (scores every case once)")
     ca.add_argument("--run", required=True)
+    rp = sub.add_parser("replay-planner", help="compare an offline test-ordering policy on saved outcomes")
+    rp.add_argument("--run", required=True)
+    rp.add_argument("--steps", type=int, required=True)
+    rp.add_argument("--planner", choices=["mock", "muse"], default="mock")
     tr = sub.add_parser("transcribe", help="Muse Voice Transcribe: WAV to text, optionally saved as a reviewer note")
     tr.add_argument("--wav", required=True)
     tr.add_argument("--run")
@@ -521,6 +545,8 @@ def main() -> None:
         return
     if args.command == "compare-agent":
         raise SystemExit(compare_agent(args))
+    if args.command == "replay-planner":
+        raise SystemExit(replay_planner(args))
     if args.command == "stress-gen":
         raise SystemExit(stress_gen(args))
     if args.command == "transcribe":
