@@ -56,3 +56,10 @@ The decision, one line per check, failing conditions with passed over total and 
 recommended next experiments, and traceability: run id, dataset id and type, mode, sha256 of the run
 file, policy version and the count of distinct image hashes. Labels, file contents and keys are never
 printed. Output is sorted and deterministic.
+
+## In the web app and the card
+
+Open a saved run in `/app` to see the Release gate panel below the results table.
+It shows the decision, every check, failing conditions, and recommended next experiments.
+Download the evaluation card to find the same decision and checks in its Release gate section.
+Human review is mandatory for every decision, and mock, synthetic or generated evidence is DEMO_ONLY.

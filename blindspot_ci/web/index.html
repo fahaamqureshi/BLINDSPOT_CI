@@ -111,6 +111,22 @@ function noteBox(run,caseId,msg){
       setTimeout(()=>{if(mr&&mr.state==='recording')mr.stop()},60000)}
     catch(e){msg.textContent='Microphone unavailable: '+e.message}};
   return h('div',{class:'notes'},list,ta,h('div',{class:'row'},save,rec))}
+ const HUMAN_REVIEW_NOTICE='Human review is mandatory. GO_CANDIDATE is not a deployment approval or safety certification.';
+ function releaseGatePanel(run){
+   const box=h('div',{class:'step',id:'release-gate','aria-live':'polite'});
+   box.append(h('h2',{},'Release gate'),h('p',{class:'small'},'Loading release gate.'));
+   api(`/api/runs/${run.id}/release-gate`).then(gate=>{
+     const decision=h('div',{class:'row'},h('b',{},'Decision'),h('span',{class:'badge',role:'status','aria-label':`Release gate decision: ${gate.decision}`},gate.decision));
+     const table=h('table',{},h('thead',{},h('tr',{},h('th',{scope:'col'},'Status'),h('th',{scope:'col'},'Name'),h('th',{scope:'col'},'Detail'))),h('tbody',...gate.checks.map(check=>h('tr',{},h('td',{},check.status),h('td',{},check.name),h('td',{},check.detail)))));
+     const failing=h('div',{},h('h3',{},'Failing conditions'),gate.failing.length?h('ul',{},...gate.failing.map(item=>h('li',{},item))):h('p',{},'None.'));
+     const next=h('div',{},h('h3',{},'Recommended next experiments'),gate.next_experiments.length?h('ul',{},...gate.next_experiments.map(item=>h('li',{},item))):h('p',{},'None.'));
+     const items=[h('h2',{},'Release gate'),decision];
+     if(gate.decision==='DEMO_ONLY')items.push(h('p',{class:'small'},'Mock, synthetic or generated evidence cannot be gated.'));
+     if(gate.reason)items.push(h('p',{class:'small'},'Reason: '+gate.reason));
+     items.push(h('h3',{},'Checks'),table,failing,next,h('p',{class:'small'},gate.notice||HUMAN_REVIEW_NOTICE));
+     box.replaceChildren(...items);
+   }).catch(error=>box.replaceChildren(h('h2',{},'Release gate'),h('p',{class:'err',role:'alert'},'Release gate unavailable: '+error.message)));
+   return box}
 function render(run){
   run.reviewer_notes=run.reviewer_notes||[];run.dataset_name=ds;
   const sum=run.summary;$('s-tested').textContent=sum.tested;$('s-pass').textContent=sum.passed;$('s-fail').textContent=sum.failed;$('s-unknown').textContent=sum.unknown;
@@ -129,7 +145,7 @@ function render(run){
   const ci=r=>r.scored?`${r.passed} of ${r.scored} (95% interval ${Math.round(r.pass_ci95[0]*100)}% to ${Math.round(r.pass_ci95[1]*100)}%)`:'n/a';
   const tbl=h('table',{},h('tr',{},h('th',{},'Slice'),h('th',{},'Passed of scored'),h('th',{},'Evidence')));
   for(const[name,r]of [['all tests',sum],...Object.entries(sum.by_condition)])tbl.append(h('tr',{},h('td',{},name),h('td',{},ci(r)),h('td',{class:r.underpowered?'under':''},r.underpowered?'underpowered: fewer than 5 scored':'ok')));
-  t.append(h('div',{class:'step'},h('h2',{},'Results with uncertainty'),tbl,h('p',{class:'small'},'Wilson 95% intervals. Small slices are wide on purpose: report counts, not bare percentages.'),h('a',{href:`/api/runs/${run.id}/card`,download:`evaluation-card-${run.id}.md`},'Download evaluation card (Markdown)')));
+   t.append(h('div',{class:'step'},h('h2',{},'Results with uncertainty'),tbl,h('p',{class:'small'},'Wilson 95% intervals. Small slices are wide on purpose: report counts, not bare percentages.'),h('a',{href:`/api/runs/${run.id}/card`,download:`evaluation-card-${run.id}.md`},'Download evaluation card (Markdown)')),releaseGatePanel(run));
   const box=h('div',{class:'step'}),out=h('div',{class:'audit'}),amsg=h('p',{class:'small'}),btn=h('button',{},'Write audit with Muse Wonder');
   box.append(h('h2',{},'Audit'),h('p',{},'Muse Wonder reads the saved results and writes a plain-language audit. It cannot change any score.'),btn,amsg,out);
   if(run.audit)out.textContent=run.audit.text;

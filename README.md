@@ -146,6 +146,7 @@ GET  /api/cases                 test inventory without labels
 GET  /api/cases/{id}/image      the photo for one case
 POST /api/experiment            {"max_steps": 5}; 403 unless live is enabled
 GET  /api/runs/{id}             a saved report with notes and audit
+GET  /api/runs/{id}/release-gate release-gate decision and checks for a saved run
 POST /api/runs/{id}/notes       typed reviewer note
 POST /api/runs/{id}/voice       raw WAV body, transcribed into a note
 POST /api/runs/{id}/audit       Muse Wonder audit of a saved run

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from blindspot_ci.experiment import release_gate
 from blindspot_ci.experiment.power import cases_needed, upper_bound_no_failures
 from blindspot_ci.experiment.scoring import MIN_SLICE_FOR_CLAIM
 
@@ -104,6 +105,18 @@ def build_card(run: dict[str, Any]) -> str:
     if audit:
         lines += ["", "## Audit text", "", f"Written by {audit['model']} from the saved results. It changes no score.", "",
                   "```text", audit["text"].replace("```", "'''"), "```"]
+    gate = release_gate.evaluate(run, release_gate.load_policy(None), None)
+    lines += ["", "## Release gate", "", f"Decision: {gate['decision']}"]
+    if gate.get("reason"):
+        lines.append(f"Reason: {_cell(gate['reason'])}")
+    lines += ["", "Failing checks", ""]
+    failing_checks = [check for check in gate["checks"] if check["status"] == "FAIL"]
+    lines += [f"- {check['status']}: {check['name']}: {_cell(check['detail'])}" for check in failing_checks]
+    if not failing_checks:
+        lines.append("None.")
+    lines += ["", "Recommended next experiments", ""]
+    lines += [f"- {_cell(item)}" for item in gate["next_experiments"]] or ["- None."]
+    lines += ["", gate["notice"]]
     lines += ["", "## Reproducibility", "",
               f"- Run id {run['id']}. Calls {run['calls']}. Estimated cost ${run['estimated_cost_usd']}.",
               f"- Pass threshold: IoU {run['min_iou']}."]

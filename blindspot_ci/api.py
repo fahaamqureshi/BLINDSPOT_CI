@@ -12,6 +12,7 @@ from blindspot_ci import factory
 from blindspot_ci.budget import BudgetExceeded, BudgetGuard
 from blindspot_ci.config import Settings
 from blindspot_ci.data import load_scenarios
+from blindspot_ci.experiment import release_gate
 from blindspot_ci.experiment.card import build_card
 from blindspot_ci.experiment.cases import MANIFESTS, image_path, load_named_dataset, public_case
 from blindspot_ci.experiment.corruptions import generate_corruptions
@@ -196,6 +197,14 @@ def run_record(run_id: str) -> dict[str, object]:
     try:
         report = load_run(Settings().runs_dir, run_id)
         return {**report, **load_extras(Settings().runs_dir, run_id)}
+    except (ValueError, FileNotFoundError) as exc:
+        raise HTTPException(404, "run not found") from exc
+
+
+@app.get("/api/runs/{run_id}/release-gate")
+def run_release_gate(run_id: str) -> dict[str, object]:
+    try:
+        return release_gate.evaluate_file(Settings().runs_dir, run_id, release_gate.load_policy(None))
     except (ValueError, FileNotFoundError) as exc:
         raise HTTPException(404, "run not found") from exc
 
