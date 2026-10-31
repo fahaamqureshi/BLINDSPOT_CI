@@ -57,9 +57,21 @@
   <div><h3>An agent chooses</h3><p>Muse Spark 1.3 reads the list of tests with the labels hidden. It calls <code>choose_next_test</code> or <code>finish_testing</code>. The server rejects any other call.</p></div>
   <div><h3>The model segments</h3><p>SAM 3.1 gets the photo and a word such as "fire hydrant". It returns boxes and masks.</p></div>
   <div><h3>Python scores</h3><p>Code compares the best box with the box a person drew. No model grades itself.</p></div>
-  <div><h3>You get a report</h3><p>Pass counts with uncertainty, every failure with its photo, and an evaluation card you can download.</p></div>
+  <div><h3>You get a report</h3><p>Pass counts with uncertainty, every failure with its photo, a release gate decision and an evaluation card you can download.</p></div>
  </div>
  <p style="margin-top:18px">Three more Meta models help around the edges: Muse Image makes labeled dark and blurry variants, Muse Voice Transcribe turns a spoken reviewer note into text, and Muse Wonder writes a plain-language audit. None of them can change a score.</p>
+</section>
+
+<section>
+ <h2>What the release gate decides</h2>
+ <p>After a run is saved, the release gate reads it and gives one decision with the reasons and the next experiments to run. It needs no key and costs nothing. Human review is mandatory for every decision.</p>
+ <dl>
+  <dt>DEMO_ONLY</dt><dd>Mock, synthetic or generated evidence. It can show nothing else.</dd>
+  <dt>NO_GO</dt><dd>A required condition is below the 0.90 bar on enough scored cases. The saved COCO live run gives this: low light passed 6 of 10 and small object passed 19 of 24.</dd>
+  <dt>NEEDS_REVIEW</dt><dd>Nothing is clearly failing, but the evidence is thin, uncertain, unreviewed or not live.</dd>
+  <dt>GO_CANDIDATE</dt><dd>Every check passed. It is not an approval and not a safety certification. A person still decides.</dd>
+ </dl>
+ <p><a class="btn alt" href="/guide#gate">How the gate works</a></p>
 </section>
 
 <section>

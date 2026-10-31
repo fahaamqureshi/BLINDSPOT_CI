@@ -144,7 +144,7 @@ function render(run){
   for(const e of run.errors)t.append(h('p',{class:'err'},e));
   const ci=r=>r.scored?`${r.passed} of ${r.scored} (95% interval ${Math.round(r.pass_ci95[0]*100)}% to ${Math.round(r.pass_ci95[1]*100)}%)`:'n/a';
   const tbl=h('table',{},h('tr',{},h('th',{},'Slice'),h('th',{},'Passed of scored'),h('th',{},'Evidence')));
-  for(const[name,r]of [['all tests',sum],...Object.entries(sum.by_condition)])tbl.append(h('tr',{},h('td',{},name),h('td',{},ci(r)),h('td',{class:r.underpowered?'under':''},r.underpowered?'underpowered: fewer than 5 scored':'ok')));
+  for(const[name,r]of [['all tests',sum],...Object.entries(sum.by_condition)])tbl.append(h('tr',{},h('td',{},name),h('td',{},ci(r)),h('td',{class:r.underpowered?'under':''},r.underpowered?'underpowered: fewer than 5 scored':'5 or more scored')));
    t.append(h('div',{class:'step'},h('h2',{},'Results with uncertainty'),tbl,h('p',{class:'small'},'Wilson 95% intervals. Small slices are wide on purpose: report counts, not bare percentages.'),h('a',{href:`/api/runs/${run.id}/card`,download:`evaluation-card-${run.id}.md`},'Download evaluation card (Markdown)')),releaseGatePanel(run));
   const box=h('div',{class:'step'}),out=h('div',{class:'audit'}),amsg=h('p',{class:'small'}),btn=h('button',{},'Write audit with Muse Wonder');
   box.append(h('h2',{},'Audit'),h('p',{},'Muse Wonder reads the saved results and writes a plain-language audit. It cannot change any score.'),btn,amsg,out);

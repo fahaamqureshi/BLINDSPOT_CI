@@ -1,12 +1,14 @@
 # BLINDSPOT CI
 
-An evaluation tool that finds where a vision model misses objects it should see.
+A test harness that finds where a vision model misses objects it should see, plus a conservative release
+gate over the saved evidence. The gate returns DEMO_ONLY, NO_GO, NEEDS_REVIEW or GO_CANDIDATE and lists what
+to fix first. It is never a safety approval.
 
 You give it photos in which a person has marked where an object is (or confirmed it is absent). An agent
 (Muse Spark) chooses which photo to test next. The model under test (SAM 3.1) outlines the object. Plain
 Python then scores the outline against the person's box. No model grades itself.
 
-It is a test harness, not a benchmark and not a safety approval.
+It is a test harness, not a benchmark and not a safety approval. Human review is mandatory for every decision.
 
 ## What you get
 
@@ -14,6 +16,9 @@ It is a test harness, not a benchmark and not a safety approval.
 - Every failure shown on its photo, with the human box beside the model's.
 - An evaluation card in Markdown: intended use, evidence, metrics, failures, reproducibility, limits.
 - Runs that replay from a cache and carry a source label, so mock results are never mistaken for model results.
+- A Release Gate over one saved run: a decision, one line per check, the failing conditions and the next
+  experiments to run. It appears in the `release-gate` command, the Release gate panel in `/app` and the card.
+  Mock, fixture, synthetic, generated and corrupted evidence can only ever give DEMO_ONLY.
 
 ## Results so far
 
@@ -28,6 +33,22 @@ Real, human-labeled photos and video only. Details and caveats are in `docs/`.
 
 These samples are small and mostly single-annotator. A pass rate here is not a failure rate you can quote.
 See `docs/gap-analysis.md` for what is missing.
+
+## Release gate example
+
+`python -m blindspot_ci.cli release-gate --run a165cd6773cd433a` on the saved COCO live run gives NO_GO.
+Low light passed 6 of 10 and small object passed 19 of 24, both against a 0.90 bar. The output lists the
+failing conditions and the next experiments, such as fixing the failing cases and re-running on fresh photos.
+Details are in `docs/release-gate.md`.
+
+| Decision | Exit code |
+| --- | --- |
+| GO_CANDIDATE | 0 |
+| NO_GO | 1 |
+| NEEDS_REVIEW | 2 |
+| DEMO_ONLY | 3 |
+
+Exit 4 means a file could not be read. GO_CANDIDATE means every check passed and a person still decides.
 
 ## Quick start
 
@@ -171,6 +192,7 @@ The image runs as a non-root user on the mock provider. Pass a key only for a lo
 - `docs/results-open-images.md`: live result on real Open Images photos
 - `docs/results-hard-and-video.md`: harder photos and DAVIS video frames, with limits
 - `docs/results-coco.md`: 132 COCO val2017 cases with a low-light weak spot
+- `docs/release-gate.md`: the release gate decisions, checks, policy and exit codes
 - `docs/gap-analysis.md`: what is missing against what standards and strong teams ask for
 - `docs/deploy-and-readiness.md`: run and deploy notes, review findings, open items
 - `docs/research-and-standards.md`: sources behind the design

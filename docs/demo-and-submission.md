@@ -13,7 +13,13 @@ Use a real run on the Open Images set (or your own labeled photos). Do the mock 
    recovery photo you supplied.
 5. Show the saved report: image hash, IoU, latency, cost. Say how many photos there are and what the
    threshold is.
-6. Say plainly what you did not test. Never show a `MOCK_FIXTURE` number as a SAM result.
+6. Show the failure on the COCO live run. Open `/app?run=a165cd6773cd433a&dataset=coco` (a saved run, so it is
+   free) and point at low light, 6 of 10 passed, and small object, 19 of 24 passed.
+7. Scroll to the Release gate panel. It reads the saved run and shows NO_GO, because low light and small
+   object are below the 0.90 bar. Read the failing conditions, then the recommended next experiments, such
+   as fixing the failing low light and small object cases and re-running on fresh photos. Say: "GO_CANDIDATE
+   would still not be an approval, and a mock run can only show DEMO_ONLY."
+8. Say plainly what you did not test. Never show a `MOCK_FIXTURE` number as a SAM result.
 
 ## Hackathon facts (checked 2026-10-31)
 

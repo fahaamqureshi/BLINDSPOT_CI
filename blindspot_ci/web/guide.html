@@ -13,7 +13,7 @@
 <div class="wrap guide">
 <nav class="toc" aria-label="On this page">
  <a href="#start">Start in five minutes</a><a href="#parts">What each part does</a><a href="#live">Run it live</a>
- <a href="#own-photos">Test your own photos</a><a href="#read">Read a result</a><a href="#video">Record the demo</a><a href="#limits">What it cannot tell you</a>
+ <a href="#own-photos">Test your own photos</a><a href="#read">Read a result</a><a href="#gate">Release gate</a><a href="#video">Record the demo</a><a href="#limits">What it cannot tell you</a>
 </nav>
 <main id="main">
 <h1 style="font-size:clamp(36px,5vw,56px)">Guide</h1>
@@ -70,6 +70,16 @@ python -m blindspot_ci.cli import-photos my-labels.json
 <dt>95% interval</dt><dd>The range the true pass rate could plausibly sit in. Slices with fewer than 5 scored cases are marked underpowered. Quote counts, not bare percentages.</dd>
 </dl></section>
 
+<section id="gate"><h2>Release gate</h2>
+<p>The release gate reads one saved run and says whether that evidence supports moving toward deployment. It makes no model calls and costs nothing. It is conservative on purpose. Open a saved run in the tool to see the Release gate panel under the results table, or run <code>python -m blindspot_ci.cli release-gate --run RUN_ID</code>. The evaluation card carries the same decision.</p>
+<dl>
+<dt>DEMO_ONLY</dt><dd>The run used mock, fixture, synthetic, generated or corrupted evidence. These can only ever show DEMO_ONLY, however good the numbers look.</dd>
+<dt>NO_GO</dt><dd>A required condition has enough scored cases and its pass rate is below the 0.90 bar. The panel lists the failing conditions and the next experiments to run.</dd>
+<dt>NEEDS_REVIEW</dt><dd>Nothing is clearly failing, but the evidence is thin, uncertain, not reviewed by a second person, or not from a live run.</dd>
+<dt>GO_CANDIDATE</dt><dd>Every check passed. This is not an approval and not a safety certification. A person still decides.</dd>
+</dl>
+<p>Example: the saved COCO live run gives NO_GO because low light passed 6 of 10 and small object passed 19 of 24. The command exits with 0 for GO_CANDIDATE, 1 for NO_GO, 2 for NEEDS_REVIEW and 3 for DEMO_ONLY.</p></section>
+
 <section id="video"><h2>Record the demo (about three minutes)</h2>
 <p>Use this order for the hackathon video. Say only what the screen shows.</p>
 <ol>
@@ -78,7 +88,7 @@ python -m blindspot_ci.cli import-photos my-labels.json
 <li><b>0:45 The free demo.</b> Open Demo and press Run. Point at one passing step and one failing step. Say the banner: scripted answers, not SAM performance.</li>
 <li><b>1:20 The live run.</b> In the tool, switch to the Open Images set with a live key. Run 6 steps. Show the agent's reason for each choice and the mode label LIVE_META.</li>
 <li><b>2:00 A real miss.</b> Open a failed case. Show the green model box, the dashed human box and the score.</li>
-<li><b>2:20 The evidence.</b> Show the results table with intervals, the evaluation card download and the Muse Wonder audit.</li>
+<li><b>2:20 The evidence.</b> Show the results table with intervals, the Release gate panel with its decision and next experiments, the evaluation card download and the Muse Wonder audit.</li>
 <li><b>2:45 The honest limits.</b> State that the agent has not been shown to beat random order, the photos are hydrants and stop signs, and small slices are underpowered.</li></ol></section>
 
 <section id="limits"><h2>What it cannot tell you</h2>
