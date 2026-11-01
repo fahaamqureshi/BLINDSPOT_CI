@@ -110,7 +110,7 @@ h1.h1s{font-size:clamp(24px,3.6vw,34px)}
 .vb .vmeta{color:var(--mute);font-size:14px;margin:0 0 12px}
 .btn.sm{padding:10px 16px;font-size:15px}
 .what{display:block;margin:4px 0 8px;font:14px/1.45 var(--ui)}
-.what summary{display:inline-block;cursor:pointer;color:var(--link);text-decoration:underline;text-underline-offset:3px}
+.what summary{display:inline-block;min-height:24px;padding:2px 0;box-sizing:border-box;cursor:pointer;color:var(--link);text-decoration:underline;text-underline-offset:3px}
 .what p{margin:6px 0 0;color:var(--mute);max-width:62ch;font:14px/1.45 var(--ui)}
 .vis{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 table.kinds{background:var(--panel);border:2px solid var(--ink)}
@@ -160,6 +160,8 @@ details.sec h3{margin:18px 0 6px}
 .tools button:disabled{opacity:.5;cursor:wait}
 .tools .box{border-top:1px solid var(--line);padding-top:14px;margin-top:14px}
 .checks{display:flex;gap:12px;flex-wrap:wrap;margin:0 0 10px}
+.checks label{display:inline-flex;align-items:center;gap:8px;min-height:24px}
+.checks input{width:24px;height:24px;margin:0}
 .models{display:grid;gap:8px;font:14px/1.4 var(--ui)}.models b{display:block}.models span{color:var(--mute)}
 .audit{white-space:pre-wrap;font:15px/1.5 var(--ui)}
 .err{color:var(--bad);font:15px var(--ui)}
