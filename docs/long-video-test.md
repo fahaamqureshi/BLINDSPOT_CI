@@ -52,11 +52,21 @@ The normal run report is saved under `artifacts/runs`. Full frame results are in
 
     python -m blindspot_ci.cli temporal-report --run RUN_ID
 
+To replay a saved raw stream without a key, live flags or network access, keep the manifest for its
+human labels and name one sequence. `PATH` may be the raw text file or a directory containing the
+matching `<run id>-<sequence>.txt` file.
+
+    python -m blindspot_ci.cli long-video --manifest DIR/mot20-manifest.json --sequences MOT20-03 --from-raw PATH
+
 The temporal report describes misses, recovery, ten time-bin dropout, condition retention, and the
 luminance range. Frames from one track are strongly correlated, so intervals from this report
 overstate certainty. Dark is relative to each sequence and means little when its luminance range is
 narrow. Use `fixtures/policies/long-video.json` with `release-gate --policy`; it uses the MOT20
 conditions and leaves the default numeric thresholds unchanged.
+
+MOT20 human boxes cover the whole person including hidden parts, while SAM boxes cover what it sees.
+Low scores on frames tagged occluded may reflect that labelling convention and not a model loss.
+MOT20 is not a fixed-camera dataset.
 
 The provider accepts a video URL directly. If the URL is refused, a future fallback could upload the
 file and use its returned file ID. That is a reasonable compatibility improvement, but it is not part

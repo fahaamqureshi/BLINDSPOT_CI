@@ -6,6 +6,7 @@ import httpx
 import pytest
 
 from blindspot_ci import cli
+from blindspot_ci.experiment import temporal
 from blindspot_ci.experiment.release_gate import evaluate, load_policy
 from blindspot_ci.experiment.runner import load_run
 from blindspot_ci.experiment.temporal import (
@@ -16,6 +17,12 @@ from blindspot_ci.experiment.temporal import (
 from blindspot_ci.providers.sam_video import MetaSam31VideoAdapter
 
 KEY = "LLM_test_key"
+
+
+class _CutStream(httpx.SyncByteStream):
+    def __iter__(self):
+        yield b'data: {"type":"response.output_text.delta","delta":"<1f>1<|box;x1=0;y1=0;x2=10;y2=10|>\\n"}\n\n'
+        raise RuntimeError("connection cut")
 
 
 def _sse(*events):
@@ -91,6 +98,8 @@ def test_long_video_scores_raw_output_and_temporal_metrics(tmp_path):
     text = render_temporal_report(tmp_path / "runs", report["id"])
     assert "ten equal time bins" in text
     assert "never recovered" in text
+    assert "Target retention" in text
+    assert "hidden parts" in text and "fixed-camera" in text
     assert "strongly correlated" in text
 
 
@@ -118,6 +127,64 @@ def test_http_500_is_one_attempt_and_raw_is_saved(tmp_path):
     assert (tmp_path / "raw" / f"{report['id']}-MOT20-02.txt").read_text() == "server failed"
 
 
+def test_cut_stream_keeps_partial_raw_and_marks_later_frames_error(tmp_path):
+    def handler(request):
+        return httpx.Response(200, stream=_CutStream())
+
+    report = run_long_video(_manifest(), ["MOT20-02"], 1.0,
+                            runs_dir=tmp_path / "runs", raw_dir=tmp_path / "raw",
+                            adapter=MetaSam31VideoAdapter(KEY, transport=httpx.MockTransport(handler)))
+    temporal = json.loads((tmp_path / "runs" / f"{report['id']}.temporal.json").read_text())
+    rows = temporal["sequences"][0]["targets"][0]["frames"]
+    assert rows[0]["status"] == "PASS"
+    assert rows[1]["status"] == "ERROR" and "ended early" in rows[1]["reason"]
+    assert (tmp_path / "raw" / f"{report['id']}-MOT20-02.txt").read_text().startswith("data:")
+
+
+def test_raw_safety_cap_stops_reading_and_marks_truncated(monkeypatch, tmp_path):
+    monkeypatch.setattr(temporal, "MAX_RAW_TEXT_BYTES", 10)
+    body = _sse(_delta("<1f>1<|box;x1=0;y1=0;x2=10;y2=10|>\n"), _complete())
+    report = run_long_video(_manifest(), ["MOT20-02"], 1.0,
+                            runs_dir=tmp_path / "runs", raw_dir=tmp_path / "raw", adapter=_adapter(body))
+    raw_path = tmp_path / "raw" / f"{report['id']}-MOT20-02.txt"
+    assert raw_path.stat().st_size <= 10
+    saved = json.loads((tmp_path / "runs" / f"{report['id']}.temporal.json").read_text())
+    assert saved["sequences"][0]["targets"][0]["frames"][0]["status"] == "ERROR"
+
+
+def test_missing_middle_frame_in_completed_stream_is_a_miss(tmp_path):
+    body = _sse(
+        _delta("<1f>1<|box;x1=0;y1=0;x2=10;y2=10|>\n"),
+        _delta("<3f>1<|box;x1=0;y1=0;x2=10;y2=10|>\n"),
+        _complete(),
+    )
+    report = run_long_video(_manifest(), ["MOT20-02"], 1.0,
+                            runs_dir=tmp_path / "runs", raw_dir=tmp_path / "raw", adapter=_adapter(body))
+    temporal = json.loads((tmp_path / "runs" / f"{report['id']}.temporal.json").read_text())
+    rows = temporal["sequences"][0]["targets"][0]["frames"]
+    assert rows[1]["status"] == "FAIL_FALSE_NEGATIVE"
+    assert rows[2]["status"] == "PASS"
+
+
+def test_raw_replay_needs_no_live_settings_and_costs_zero(monkeypatch, tmp_path, capsys):
+    raw_dir = tmp_path / "raw"
+    raw_dir.mkdir()
+    body = _sse(_delta("<1f>1<|box;x1=0;y1=0;x2=10;y2=10|>\n"), _complete())
+    (raw_dir / "saved-MOT20-02.txt").write_text(body, encoding="utf-8")
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(json.dumps(_manifest()), encoding="utf-8")
+    monkeypatch.setattr(cli, "Settings", lambda: SimpleNamespace(runs_dir=tmp_path / "runs"))
+    args = SimpleNamespace(manifest=str(manifest_path), sequences=["MOT20-02"], budget_usd=None,
+                           dry_run=False, min_iou=0.35, from_raw=str(raw_dir))
+    assert cli.long_video(args) == 0
+    report_path = next((tmp_path / "runs").glob("[0-9a-f]*.json"))
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    assert report["mode"] == "CACHE_LIVE_META"
+    assert report["estimated_cost_usd"] == 0.0
+    assert report["replayed_from_raw"].endswith("saved-MOT20-02.txt")
+    assert "replayed raw text" in capsys.readouterr().out
+
+
 @pytest.mark.parametrize("provider,enabled,key,expected", [
     ("mock", True, "LLM_test_key", "BLINDSPOT_PROVIDER"),
     ("meta", False, "LLM_test_key", "LIVE_API_ENABLED"),
@@ -130,6 +197,6 @@ def test_live_requirements_fail_before_network(monkeypatch, capsys, tmp_path, pr
         provider=provider, live_api_enabled=enabled, model_api_key=key,
         meta_base_url="https://example.invalid/v1", runs_dir=tmp_path / "runs"))
     args = SimpleNamespace(manifest=str(manifest_path), sequences=["MOT20-02"], budget_usd=1.0,
-                           dry_run=False, min_iou=0.35)
+                           dry_run=False, min_iou=0.35, from_raw=None)
     assert cli.long_video(args) == 2
     assert expected in capsys.readouterr().out

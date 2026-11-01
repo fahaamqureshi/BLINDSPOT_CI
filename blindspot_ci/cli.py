@@ -260,12 +260,37 @@ def release_gate(args) -> int:
     return rg.EXIT_CODES[report["decision"]]
 
 
+def _raw_source(path: str, sequence: str):
+    from pathlib import Path
+
+    source = Path(path)
+    if source.is_file():
+        return source
+    if source.is_dir():
+        matches = sorted(source.glob(f"*-{sequence}.txt"))
+        if len(matches) == 1:
+            return matches[0]
+        if not matches:
+            raise ValueError(f"no raw file for {sequence} in {source}")
+        raise ValueError(f"more than one raw file for {sequence} in {source}")
+    raise FileNotFoundError(source)
+
+
 def long_video(args) -> int:
     from blindspot_ci.experiment.temporal import load_manifest, plan_long_video, run_long_video
 
+    if not args.manifest or not args.sequences:
+        print("long-video requires --manifest and --sequences")
+        return 2
+    if args.from_raw and len(args.sequences) != 1:
+        print("--from-raw requires exactly one sequence")
+        return 2
+    if not args.from_raw and args.budget_usd is None:
+        print("long-video requires --budget-usd unless --from-raw is used")
+        return 2
     try:
         manifest = load_manifest(args.manifest)
-        plan = plan_long_video(manifest, args.sequences, args.budget_usd)
+        plan = plan_long_video(manifest, args.sequences, args.budget_usd or 0.0)
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         print(f"long-video failed: {exc}")
         return 2
@@ -278,6 +303,20 @@ def long_video(args) -> int:
     if args.dry_run:
         print("dry run: no network call made")
         return 0
+
+    if args.from_raw:
+        try:
+            raw_path = _raw_source(args.from_raw, args.sequences[0])
+            report = run_long_video(manifest, args.sequences, 0.0, args.min_iou,
+                                    runs_dir=Settings().runs_dir, raw_input=raw_path,
+                                    replayed_from_raw=True)
+        except (OSError, ValueError, RuntimeError) as exc:
+            print(f"long-video raw replay failed: {exc}")
+            return 1
+        print(f"replayed raw text from {raw_path}; saved run {report['id']} at cost $0.000000")
+        for error in report["errors"]:
+            print(f"error: {error}")
+        return 1 if report["errors"] else 0
 
     cfg = Settings()
     if cfg.provider != "meta":
@@ -534,11 +573,12 @@ def main() -> None:
     rg.add_argument("--format", choices=["text", "markdown", "json"], default="text")
     rg.add_argument("--out")
     lv = sub.add_parser("long-video", help="seed and score MOT20 long-video tracking")
-    lv.add_argument("--manifest", required=True)
-    lv.add_argument("--sequences", nargs="+", required=True)
-    lv.add_argument("--budget-usd", type=float, required=True)
+    lv.add_argument("--manifest")
+    lv.add_argument("--sequences", nargs="+")
+    lv.add_argument("--budget-usd", type=float)
     lv.add_argument("--dry-run", action="store_true")
     lv.add_argument("--min-iou", type=float, default=0.35)
+    lv.add_argument("--from-raw", help="replay one saved raw stream without network or live settings")
     tv = sub.add_parser("temporal-report", help="read a saved long-video temporal report")
     tv.add_argument("--run", required=True)
     cl = sub.add_parser("compare-labels", help="agreement between two people who labeled the same photos")

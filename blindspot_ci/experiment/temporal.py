@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import statistics
 import uuid
 from collections import Counter
 from collections.abc import Callable
@@ -40,6 +41,7 @@ from blindspot_ci.providers.sam_video import (
 CONDITION_PRIORITY = ("occluded", "truncated", "dark", "small_object", "normal")
 DATASET_ID = "mot20-long"
 DATASET_TYPE = "HUMAN_LABELED_VIDEO"
+MAX_RAW_TEXT_BYTES = 3000 * 1024 * 1024
 
 
 def _now() -> str:
@@ -105,8 +107,8 @@ def _sequence_cost(frame_count: int) -> float:
 
 def plan_long_video(manifest: dict[str, Any], names: list[str], budget_usd: float) -> list[dict[str, Any]]:
     """Return the exact offline plan without constructing an adapter or using a network."""
-    if budget_usd <= 0:
-        raise ValueError("budget_usd must be positive")
+    if budget_usd < 0:
+        raise ValueError("budget_usd must not be negative")
     sequences = _sequence_map(manifest)
     if not names:
         raise ValueError("at least one sequence is required")
@@ -129,10 +131,6 @@ def _write_raw(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8", errors="replace")
 
 
-def _raw_lines(lines: list[str]) -> str:
-    return "".join(f"{line}\n" for line in lines)
-
-
 def _reserve_sequence_cost(guard: BudgetGuard, frames: int) -> float:
     """Use the provider rule for real clips and exact pricing for short fixtures."""
     if frames >= VIDEO_MIN_BILLED_FRAMES:
@@ -144,26 +142,63 @@ def _reserve_sequence_cost(guard: BudgetGuard, frames: int) -> float:
 
 def _direct_video_call(adapter: MetaSam31VideoAdapter, request: Any, frames: int,
                        budget: BudgetGuard, raw_path: Path) -> VideoResult:
-    """Make the adapter's one-shot request while saving the untouched SSE lines first."""
+    """Make one request while streaming raw SSE text to disk and parsing it incrementally."""
     reserved = _reserve_sequence_cost(budget, frames)
     headers = {"Authorization": f"Bearer {adapter.api_key}", "Content-Type": "application/json",
                "Accept": "text/event-stream"}
-    lines: list[str] = []
+    raw_path.parent.mkdir(parents=True, exist_ok=True)
+    stream_error: Exception | None = None
+    cap_hit = False
+    raw_bytes = 0
+
+    def lines(response):
+        nonlocal stream_error, cap_hit, raw_bytes
+        try:
+            for line in response.iter_lines():
+                text = line.decode("utf-8", errors="replace") if isinstance(line, bytes) else str(line)
+                encoded = (text + "\n").encode("utf-8")
+                remaining = MAX_RAW_TEXT_BYTES - raw_bytes
+                if len(encoded) > remaining:
+                    if remaining > 0:
+                        raw_file.write(encoded[:remaining])
+                        raw_file.flush()
+                        raw_bytes += remaining
+                    cap_hit = True
+                    return
+                raw_file.write(encoded)
+                raw_file.flush()
+                raw_bytes += len(encoded)
+                yield text
+        except Exception as exc:  # noqa: BLE001
+            stream_error = exc
+
+    parsed = None
     try:
-        with httpx.Client(transport=adapter.transport, timeout=adapter.timeout) as client, \
+        with raw_path.open("wb") as raw_file, \
+                httpx.Client(transport=adapter.transport, timeout=adapter.timeout) as client, \
                 client.stream("POST", f"{adapter.base_url}/responses", headers=headers,
                               json=request.body) as response:
-            if response.status_code >= 400:
-                body = response.read()
-                raw = body.decode("utf-8", errors="replace") if isinstance(body, bytes) else str(body)
-                _write_raw(raw_path, raw)
-                response.raise_for_status()
-            lines = [line.decode("utf-8", errors="replace") if isinstance(line, bytes) else str(line)
-                     for line in response.iter_lines()]
-            _write_raw(raw_path, _raw_lines(lines))
+                if response.status_code >= 400:
+                    body = response.read()
+                    raw_file.write(body if isinstance(body, bytes) else str(body).encode("utf-8"))
+                    raw_file.flush()
+                    try:
+                        response.raise_for_status()
+                    except httpx.HTTPError as exc:
+                        raise MetaApiError(
+                            f"Meta API video request failed (not retried): {adapter._describe(exc)}") from exc
+                parsed = parse_video_stream(lines(response))
     except httpx.HTTPError as exc:
-        raise MetaApiError(f"Meta API video request failed (not retried): {adapter._describe(exc)}") from exc
-    parsed = parse_video_stream(lines)
+        if parsed is None:
+            parsed = parse_video_stream(())
+        parsed.truncated = True
+        parsed.completed = False
+        stream_error = stream_error or exc
+    if parsed is None:
+        parsed = parse_video_stream(())
+    if stream_error or cap_hit:
+        parsed.truncated = True
+        parsed.completed = False
     if parsed.error:
         parsed.error = parsed.error.replace(adapter.api_key, "[redacted]")
     billed = parsed.usage.get("video_frames_processed")
@@ -185,6 +220,12 @@ def _call_video(adapter: Any, request: Any, frames: int, budget: BudgetGuard, ra
             for frame in result.parse.frames)
     _write_raw(raw_path, str(raw))
     return result
+
+
+def _raw_video_call(request: Any, raw_path: Path) -> VideoResult:
+    with raw_path.open("r", encoding="utf-8", errors="replace") as raw_file:
+        parsed = parse_video_stream(raw_file)
+    return VideoResult(parsed, request.id_to_label, 0.0, None)
 
 
 def _condition(tags: list[str]) -> str:
@@ -220,6 +261,7 @@ def _score_target(target: dict[str, Any], parsed: Any, id_to_label: dict[int, st
     rows = []
     outcomes: list[CaseOutcome] = []
     label = _target_label(target)
+    last_arrived = max(first_frames, default=-1) if getattr(parsed, "truncated", False) else None
     for labeled in target["frames"]:
         frame_index = int(labeled["frame"])
         tags = list(labeled.get("tags") or [])
@@ -231,6 +273,9 @@ def _score_target(target: dict[str, Any], parsed: Any, id_to_label: dict[int, st
         case_id = f"{target.get('_sequence', 'sequence')}-{label}-{frame_index}"
         if failed:
             status, iou, reason, model_box = ERROR, None, failed, None
+        elif last_arrived is not None and frame_index > last_arrived:
+            status, iou, reason, model_box = ERROR, None, \
+                "The stream ended early before this labeled frame.", None
         else:
             found = _matching_object(first_frames.get(frame_index), label, id_to_label) \
                 if frame_index in first_frames else None
@@ -246,7 +291,7 @@ def _score_target(target: dict[str, Any], parsed: Any, id_to_label: dict[int, st
                     status, reason = LOCALIZATION, \
                         f"Box overlap {iou:.2f} is below the {min_iou:.2f} threshold."
         rows.append({**base, "status": status, "scoreable": status != ERROR, "iou": iou,
-                     "model_box": model_box})
+                     "reason": reason, "model_box": model_box})
         outcomes.append(CaseOutcome(case_id, status, status != ERROR, iou, reason))
     return {"target_id": target.get("track_id"), "seed_frame": target["seed_frame"],
             "frames": rows, "duplicate_count": duplicate_count,
@@ -254,15 +299,15 @@ def _score_target(target: dict[str, Any], parsed: Any, id_to_label: dict[int, st
 
 
 def _step(sequence_name: str, target: dict[str, Any], result: dict[str, Any], row: dict[str, Any],
-          manifest_digest: str) -> dict[str, Any]:
+          manifest_digest: str, source: str = "LIVE_META") -> dict[str, Any]:
     tags = row["tags"]
     condition = _condition(tags)
     case_id = f"{sequence_name}-{result['target_id']}-{row['frame']}"
     outcome = CaseOutcome(case_id, row["status"], row["scoreable"], row["iou"],
-                          "The frame was not labeled and was skipped." if not row["scoreable"] else
+                          row.get("reason") or ("The frame was not labeled and was skipped." if not row["scoreable"] else
                           ("Target absent from the returned stream." if row["status"] == FALSE_NEGATIVE else
                            "Target box met the human-labeled overlap threshold." if row["status"] == PASS else
-                           "Target box was returned below the overlap threshold."))
+                           "Target box was returned below the overlap threshold.")))
     return {
         "case": {"id": case_id, "title": f"{sequence_name} target {result['target_id']} frame {row['frame']}",
                  "condition": condition, "tags": tags, "visibility": "visible",
@@ -272,7 +317,7 @@ def _step(sequence_name: str, target: dict[str, Any], result: dict[str, Any], ro
         "outcome": outcome.to_dict(),
         "ground_truth": {"visibility": "visible", "bbox": row["human_box"],
                          "label_provenance": {"source": "MOT20 human annotation"}},
-        "prediction": {"source": "LIVE_META", "provider": "meta", "model": "sam-3.1",
+        "prediction": {"source": source, "provider": "meta", "model": "sam-3.1",
                        "parser_status": "structured", "detections": ([{"bbox": row["model_box"]}]
                                                                             if row["model_box"] else [])},
         "image_sha256": hashlib.sha256(f"{manifest_digest}:{sequence_name}:{row['frame']}".encode()).hexdigest(),
@@ -288,7 +333,8 @@ def run_long_video(manifest: dict[str, Any], names: list[str], budget_usd: float
                    raw_dir: Path | None = None, adapter: Any | None = None,
                    transport: httpx.BaseTransport | None = None,
                    run_id: str | None = None,
-                   call: Callable[[Any, Any, int, BudgetGuard, Path], VideoResult] | None = None) -> dict[str, Any]:
+                   call: Callable[[Any, Any, int, BudgetGuard, Path], VideoResult] | None = None,
+                   raw_input: Path | None = None, replayed_from_raw: bool = False) -> dict[str, Any]:
     """Run selected sequences. The caller is responsible for checking live settings."""
     plan = plan_long_video(manifest, names, budget_usd)
     sequences = _sequence_map(manifest)
@@ -315,9 +361,12 @@ def run_long_video(manifest: dict[str, Any], names: list[str], budget_usd: float
                            "luminance_samples": sequence.get("luminance_samples", []), "targets": []}
         cost_before = guard.cost_usd
         try:
-            if adapter is None:
-                adapter = MetaSam31VideoAdapter("", transport=transport)
-            result = (call or _call_video)(adapter, request, int(sequence["frame_count"]), guard, raw_path)
+            if raw_input is not None:
+                result = _raw_video_call(request, Path(raw_input))
+            else:
+                if adapter is None:
+                    adapter = MetaSam31VideoAdapter("", transport=transport)
+                result = (call or _call_video)(adapter, request, int(sequence["frame_count"]), guard, raw_path)
             total_estimated += (result.billed_frames * VIDEO_USD_PER_FRAME
                                 if result.billed_frames is not None else result.reserved_usd)
             if result.parse.error:
@@ -329,7 +378,8 @@ def run_long_video(manifest: dict[str, Any], names: list[str], budget_usd: float
                 sequence_result["targets"].append(scored_target)
                 for row in scored_target["frames"]:
                     if row["status"] != "NOT_SCORED" and (int(row["frame"]) - int(target["seed_frame"])) % 25 == 0:
-                        steps.append(_step(name, target, scored_target, row, manifest_digest))
+                        steps.append(_step(name, target, scored_target, row, manifest_digest,
+                                           "CACHE_LIVE_META" if replayed_from_raw else "LIVE_META"))
         except (BudgetExceeded, MetaApiError, OSError, ValueError) as exc:
             total_estimated += guard.cost_usd - cost_before
             errors.append(f"{name}: {str(exc).replace(getattr(adapter, 'api_key', ''), '[redacted]')}")
@@ -341,7 +391,8 @@ def run_long_video(manifest: dict[str, Any], names: list[str], budget_usd: float
             break
         temporal_sequences.append(sequence_result)
     report = {
-        "id": run_id, "started_at": started, "finished_at": _now(), "mode": "LIVE_META",
+        "id": run_id, "started_at": started, "finished_at": _now(),
+        "mode": "CACHE_LIVE_META" if replayed_from_raw else "LIVE_META",
         "provider": "meta", "model": "sam-3.1", "planner": "SEEDED_BOX_TRACKING",
         "planner_prompt_version": None,
         "dataset": {"id": DATASET_ID, "type": DATASET_TYPE, "annotation_status": "human_labeled"},
@@ -350,6 +401,8 @@ def run_long_video(manifest: dict[str, Any], names: list[str], budget_usd: float
                               {step["outcome"]["case_id"]: step["case"]["condition"] for step in steps}, min_iou),
         "calls": guard.calls, "estimated_cost_usd": round(total_estimated or guard.cost_usd, 6),
     }
+    if replayed_from_raw:
+        report["replayed_from_raw"] = str(raw_input)
     runs_dir.mkdir(parents=True, exist_ok=True)
     atomic_write_text(runs_dir / f"{run_id}.json", json.dumps(report, indent=2))
     temporal = {"run_id": run_id, "dataset": DATASET_ID, "min_iou": min_iou,
@@ -383,19 +436,31 @@ def _dropout(rows: list[dict[str, Any]], frame_count: int) -> list[tuple[int, in
     return [(misses, total, round(misses / total, 3) if total else None) for misses, total in bins]
 
 
+def _percentile(values: list[float], fraction: float) -> float | None:
+    if not values:
+        return None
+    ordered = sorted(values)
+    position = (len(ordered) - 1) * fraction
+    lower = int(position)
+    upper = min(lower + 1, len(ordered) - 1)
+    return ordered[lower] + (ordered[upper] - ordered[lower]) * (position - lower)
+
+
 def render_temporal_report(runs_dir: Path, run_id: str) -> str:
     """Render the saved temporal evidence without reading the manifest or using the network."""
     load_run(runs_dir, run_id)
     path = _temporal_path(Path(runs_dir), run_id)
     data = json.loads(path.read_text(encoding="utf-8"))
     sequence_lines: list[str] = []
-    total_targets = total_held = total_misses = 0
+    total_targets = total_held = total_reliable = total_misses = 0
+    all_retentions: list[float] = []
     for sequence in data.get("sequences", []):
         fps = float(sequence["fps"])
         all_rows = [row for target in sequence["targets"] for row in target["frames"]]
         miss_runs: list[dict[str, Any]] = []
         never = 0
         held = 0
+        retentions: list[float] = []
         conditions: dict[str, list[int]] = {}
         for target in sequence["targets"]:
             rows = target["frames"]
@@ -403,6 +468,9 @@ def render_temporal_report(runs_dir: Path, run_id: str) -> str:
             miss_runs.extend(runs)
             never += never_count
             held += bool(target.get("held_for_whole_clip"))
+            scored = [row for row in rows if row.get("status") in {PASS, FALSE_NEGATIVE, LOCALIZATION}]
+            if scored:
+                retentions.append(sum(row["status"] == PASS for row in scored) / len(scored))
             for row in rows:
                 if row.get("status") in {PASS, FALSE_NEGATIVE, LOCALIZATION}:
                     for tag in row.get("tags", []) or ["normal"]:
@@ -420,21 +488,36 @@ def render_temporal_report(runs_dir: Path, run_id: str) -> str:
         condition_text = ", ".join(f"{name} {value[0]}/{value[1]}" for name, value in sorted(conditions.items())) or "none"
         recovery_text = ", ".join(f"{frames} frames ({seconds:.2f} seconds)" for frames, seconds in recoveries) or "none"
         dropout_text = ", ".join("n/a" if rate is None else f"{rate:.3f}" for _, _, rate in bins)
+        retention_min = _percentile(retentions, 0)
+        retention_median = statistics.median(retentions) if retentions else None
+        retention_p10 = _percentile(retentions, 0.1)
+        retention_text = ("n/a" if retention_median is None else
+                          f"min {retention_min:.1%}, median {retention_median:.1%}, "
+                          f"10th percentile {retention_p10:.1%}; at least 90 percent {sum(value >= 0.9 for value in retentions)} of {len(retentions)}")
         sequence_lines.extend([
             f"{sequence['name']}: longest miss run {longest} frames ({longest_seconds:.2f} seconds).",
             f"  Dropout rate in ten equal time bins: {dropout_text}.",
             f"  Recovery after miss runs: {recovery_text}; never recovered {never}.",
             f"  Targets held for the whole clip: {held} of {len(sequence['targets'])}.",
+            f"  Target retention: {retention_text}.",
             f"  Retention by condition: {condition_text}.",
             f"  Absolute luminance range: {lum}. Dark is relative to each sequence and means little where the range is narrow.",
         ])
         total_targets += len(sequence["targets"])
         total_held += held
+        total_reliable += sum(value >= 0.9 for value in retentions)
+        all_retentions.extend(retentions)
         total_misses += sum(len(item["misses"]) for item in miss_runs)
-    headline = (f"The test saw {total_misses} missed target frames across {total_targets} targets, "
-                 f"and {total_held} targets held for the whole clip.")
+    median_retention = statistics.median(all_retentions) if all_retentions else None
+    median_text = "n/a" if median_retention is None else f"{median_retention:.1%}"
+    headline = (f"{total_reliable} of {total_targets} tracked people were followed correctly on at least "
+                f"90 percent of their scored frames; the median person was followed on {median_text}. "
+                f"There were {total_misses} failed scored frames.")
     return "\n".join([headline, "", *sequence_lines,
-                       "", "Frames from the same track are strongly correlated, so intervals from this report overstate certainty."])
+                       "", "Frames from the same track are strongly correlated, so intervals from this report overstate certainty.",
+                       "MOT20 human boxes cover the whole person including hidden parts, while SAM boxes cover what it sees.",
+                       "Low scores on frames tagged occluded may reflect that labelling convention and not a model loss.",
+                       "MOT20 is not a fixed-camera dataset."])
 
 
 def temporal_report(runs_dir: Path, run_id: str) -> str:
