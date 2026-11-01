@@ -1,0 +1,21 @@
+# Render blueprint: public demo on the mock provider. No key, no live calls, no private photos.
+# Connect the GitHub repo once in Render (New, Blueprint). After that every push to main redeploys.
+services:
+  - type: web
+    name: blindspot-ci
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    branch: main
+    autoDeploy: true
+    healthCheckPath: /health
+    envVars:
+      - key: BLINDSPOT_PROVIDER
+        value: mock
+      - key: BLINDSPOT_HOST
+        value: 0.0.0.0
+      - key: BLINDSPOT_PORT
+        value: "10000"
+      # The server refuses any Host header that is not listed. Change this if Render gives the
+      # service a different name, for example blindspot-ci-ab12.onrender.com.
+      - key: BLINDSPOT_ALLOWED_HOSTS
+        value: blindspot-ci.onrender.com
