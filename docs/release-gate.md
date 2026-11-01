@@ -82,6 +82,13 @@ scored cases. The table gives the pass rate difference, a two-sided Fisher exact
 Holm adjusted p value. A slice with fewer than five scored cases is underpowered and is never called
 worse. The p values are about chance only. Frames or photos are treated as independent observations.
 
+## Clip-aware intervals
+
+For saved DAVIS and MOT20 runs, the gate groups scored frames by clip or sequence and target, then
+bootstraps whole groups with a fixed seed. When a condition has repeated groups, its checks show a
+Wilson interval and a by-clip interval. The lower-bound check uses the lower of the two lower bounds.
+Photo datasets have no groups, so their output and decision stay unchanged.
+
 ## In the web app and the card
 
 Open a saved run in `/app` to see the Release gate panel below the results table.

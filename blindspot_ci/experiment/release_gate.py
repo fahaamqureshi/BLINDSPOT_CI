@@ -12,6 +12,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
+from blindspot_ci.experiment.cluster_ci import cluster_interval, group_key
 from blindspot_ci.experiment.coverage import DERIVED_NAMES, SYNTHETIC_NAMES, condition_family
 from blindspot_ci.experiment.power import cases_needed
 from blindspot_ci.experiment.runner import RUN_ID
@@ -122,25 +123,36 @@ def evaluate(run: dict[str, Any], policy: dict[str, Any], agreement: dict[str, A
         return {**base, "decision": DEMO_ONLY, "reason": why,
                 "next_experiments": ["run a live experiment on a human-labeled real dataset, then gate that run"]}
 
-    counts: dict[str, dict[str, int]] = defaultdict(lambda: {"passed": 0, "scored": 0})
+    counts: dict[str, dict[str, Any]] = defaultdict(
+        lambda: {"passed": 0, "scored": 0, "groups": defaultdict(list)})
     unscored = 0
     for step in steps:
         status = (step.get("outcome") or {}).get("status")
         if status in (UNKNOWN, ERROR):
             unscored += 1
         elif status == PASS or str(status).startswith("FAIL"):
-            cell = counts[condition_family((step.get("case") or {}).get("condition", "other"))]
+            condition = condition_family((step.get("case") or {}).get("condition", "other"))
+            cell = counts[condition]
             cell["scored"] += 1
             cell["passed"] += status == PASS
+            group = group_key(run, step)
+            if group is not None:
+                cell["groups"][group].append(status == PASS)
     checks: list[dict[str, Any]] = []
     no_go: list[str] = []
     review = False
     for cond in sorted(policy["required_conditions"]):
         passed, scored = counts[cond]["passed"], counts[cond]["scored"]
         ci = wilson_interval(passed, scored)
+        cluster_ci = cluster_interval(counts[cond]["groups"])
         rate = passed / scored if scored else None
-        base["conditions"][cond] = {"passed": passed, "scored": scored, "pass_ci95": ci}
+        condition_report = {"passed": passed, "scored": scored, "pass_ci95": ci}
+        if cluster_ci is not None:
+            condition_report["cluster_ci95"] = cluster_ci
+        base["conditions"][cond] = condition_report
         shown = f"{passed}/{scored}" + (f", Wilson 95% [{ci[0]}, {ci[1]}]" if ci else "")
+        if cluster_ci is not None:
+            shown += f", by clip [{cluster_ci[0]}, {cluster_ci[1]}]"
         if scored and scored >= policy["min_judged_cases"] and rate < policy["min_pass_rate"]:
             no_go.append(cond)
             base["failing"].append(f"{cond}: {shown}, pass rate {rate:.3f} below {policy['min_pass_rate']}")
@@ -157,11 +169,18 @@ def evaluate(run: dict[str, Any], policy: dict[str, Any], agreement: dict[str, A
         checks.append(_check(f"sample size {cond}", "FAIL" if thin else "PASS",
                              f"{scored} scored, need {policy['min_cases_per_condition']}",
                              fix if thin and cond not in no_go else None))
-        weak = ci is None or ci[0] < policy["min_pass_rate"]
+        lower = ci[0] if ci else 0.0
+        if cluster_ci is not None:
+            lower = min(lower, cluster_ci[0])
+        weak = ci is None or lower < policy["min_pass_rate"]
         review |= weak
         low = ci[0] if ci else "n/a"
+        lower_detail = f"{low}, bar {policy['min_pass_rate']}"
+        if cluster_ci is not None:
+            lower_detail = (f"Wilson [{ci[0]}, {ci[1]}], by clip [{cluster_ci[0]}, {cluster_ci[1]}], "
+                            f"lower {lower}, bar {policy['min_pass_rate']}")
         checks.append(_check(f"Wilson lower bound {cond}", "FAIL" if weak else "PASS",
-                             f"{low}, bar {policy['min_pass_rate']}",
+                             lower_detail,
                              fix if weak and cond not in no_go else None))
     share = unscored / len(steps) if steps else 1.0
     bad_share = share > policy["max_unscored_share"]
