@@ -75,6 +75,13 @@ condition shows passes over scored and a Wilson 95 percent interval. Steps witho
 boxes are reported as not rescored. The command also flags a condition when its pass or fail
 status against the policy pass bar changes between bars. It makes no model calls and exits 0.
 
+## Offline slice tests
+
+Use `python -m blindspot_ci.cli slice-tests --run <id>` to compare each condition with all other
+scored cases. The table gives the pass rate difference, a two-sided Fisher exact p value, and the
+Holm adjusted p value. A slice with fewer than five scored cases is underpowered and is never called
+worse. The p values are about chance only. Frames or photos are treated as independent observations.
+
 ## In the web app and the card
 
 Open a saved run in `/app` to see the Release gate panel below the results table.
