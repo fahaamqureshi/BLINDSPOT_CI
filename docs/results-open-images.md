@@ -1,4 +1,4 @@
-# Results: SAM 3.1 on Open Images red safety objects
+# Results: SAM 3.1 on Open Images everyday red coloured objects
 
 Run on 2026-10-31 through the Meta Model API (Standard mode). Every number below comes from a saved
 report in `artifacts/runs/`. Python scored every case. Nobody graded by eye, and no model graded.

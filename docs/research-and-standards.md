@@ -27,7 +27,7 @@ what this project now does about it, and what it still does not.
 | Test sets contain label errors that can change conclusions | 17 | Human provenance on every label, a reviewer field, hash lock against edits, a review count in the card |
 | Generated or LLM-written judgments carry position, verbosity and self-preference bias | 13 | No model grades anything. Python scores. Wonder and Voice never change a score |
 | Choosing which tests to run is a decision with a cost, and chance is the baseline | 8 | `compare-agent`: exact hypergeometric comparison of the agent against random order |
-| Reasoning plus tool use is a working agent pattern | 20 | Muse Spark picks tests by function calling and sees each result |
+| Reasoning plus tool use is a working agent pattern | 20 | Muse Spark can pick tests by function calling and sees each result (implemented; the saved COCO and DAVIS runs used a scripted order) |
 | Excessive agency is a top LLM application risk | 26 | Two tools only, validated arguments, bounded steps, spend cap, no free-form actions |
 | Model cards and datasheets are the expected documentation | 15, 16, 27 | `card` command and download link: intended use, data, metrics, limits |
 | A production readiness rubric scores the weakest section, not the average | 22 | The card lists evidence gaps next to results |
@@ -51,7 +51,7 @@ what this project now does about it, and what it still does not.
 
 - A pass is one example. A slice with 8 photos and 3 passes has a 95 percent interval of roughly 14 to
   69 percent. Say counts and interval.
-- Open Images photos are not a maintenance tray tag. They show how SAM 3.1 handles red safety objects in
+- Open Images photos are not a maintenance tray tag. They show how SAM 3.1 handles everyday red objects in
   public photos.
 - SAM 1 robustness results (reference 4) are hypotheses for SAM 3.1, not findings about it. That paper
   also measured agreement with SAM's own clean masks on 100 photos, not accuracy against human labels.

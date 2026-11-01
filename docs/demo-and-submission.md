@@ -1,84 +1,55 @@
 # Demo and submission
 
-## 90-second demo
+## 90-second demo script
 
-Use a real run on the Open Images set (or your own labeled photos). Do the mock run only to explain the layout.
+Use the saved runs. They are free and show real results. Start the app with `python -m blindspot_ci.cli serve`.
+Never show a `MOCK_FIXTURE` number as a SAM result.
 
-1. Start the app with `BLINDSPOT_PROVIDER=meta`, `LIVE_API_ENABLED=true`, `BLINDSPOT_DATASET=real`.
-   Say: "This tests SAM 3.1 on one task and is not a safety approval."
-2. Point at the mode badge (`LIVE_META`) and press Run experiment.
-3. Walk through the trace: Muse's tool call and reason, the SAM masks on the photo, the yellow human
-   label, the IoU and status.
-4. Show the step where the result changes the next choice, for example a miss followed by the
-   recovery photo you supplied.
-5. Show the saved report: image hash, IoU, latency, cost. Say how many photos there are and what the
-   threshold is.
-6. Show the failure on the COCO live run. Open `/app?run=a165cd6773cd433a&dataset=coco` (a saved run, so it is
-   free) and point at low light, 6 of 10 passed, and small object, 19 of 24 passed.
-7. Scroll to the Release gate panel. It reads the saved run and shows NO_GO, because low light and small
-   object are below the 0.90 bar. Read the failing conditions, then the recommended next experiments, such
-   as fixing the failing low light and small object cases and re-running on fresh photos. Say: "GO_CANDIDATE
-   would still not be an approval, and a mock run can only show DEMO_ONLY."
-8. Say plainly what you did not test. Never show a `MOCK_FIXTURE` number as a SAM result.
+1. The problem (10 seconds). Say: "A vision model can look great in a demo and still fail on dark, small or half
+   hidden objects. BLINDSPOT CI tests it against human labels and tells a QA engineer whether it is ready to ship."
+2. The verdict (25 seconds). Open `/app?run=a165cd6773cd433a&dataset=coco`, the saved live COCO run. Read the
+   verdict, NO_GO (Do not ship yet), then the sentence under it, then the failing rows: low light found 6 of 10
+   and small objects 19 of 24, against a bar of 9 of 10.
+3. What to fix (10 seconds). In the Release gate panel, read the what to fix list, such as fixing the failing
+   low light and small object cases and re-running on fresh photos.
+4. The real long video test (20 seconds). Say: "We followed 16 people through a public 2,405 frame crowd video
+   with one paid call. Only 3 of 16 were followed on at least 90 percent of their frames, so the gate says NO_GO.
+   Our first scoring wrongly showed 0 of 16 because the service shrank the video and returned boxes at the
+   smaller size. We caught it, fixed it, and re-scored the saved answer for free."
+5. Honest limits (15 seconds). Say: "Most labels come from one person, the sets are small, the saved COCO and DAVIS
+   runs used a scripted test order, and this is not a safety approval."
+6. What comes next (10 seconds). Say: "Next are our own photos taken after the model release, and a second
+   labeler. Until then the gate cannot return GO_CANDIDATE."
 
-## Hackathon facts (checked 2026-10-31)
+## Submission checklist
 
-- Virtual, worldwide, selected participants. Tracks: Indie developer and Startup.
-- Submission due Nov 4, 2026, 9:00 PM ET. Dates can change, so check the portal.
-- Selected participants must accept the official rules. They are authoritative over this file.
-- Pricing used for estimates: Muse Spark 1.3 Standard $1.25 per million input tokens, $4.25 per
-  million output tokens; SAM 3.1 $2.50 per 1,000 images. Default spend cap here is $5 per run.
-- Rules to keep: do not share keys, do not bypass rate limits, use Standard mode, keep Meta's labels
-  on real outputs, use only authorized media.
+Items marked UNVERIFIED have not been checked against the official Rules. The event page is
+https://cerebralvalley.ai/e/meta-ai-developer-hackathon and lists a deadline of Nov 4 2026, 9:00 PM ET.
 
-## Verified live (2026-10-31)
+- [ ] Read the official Rules. Required fields, eligibility and track (Indie or Startup, undecided) are UNVERIFIED.
+- [ ] Video length limit: UNVERIFIED.
+- [ ] Repository and write-up requirements: UNVERIFIED.
+- [ ] README first screen reads well: purpose, the NO_GO example, the four decisions with exit codes, three links.
+- [ ] The demo video plays on another device or account, outside this machine.
+- [ ] `python scripts/check.py` prints `Summary: PASS`.
+- [ ] No `.env` or API key in any package. Run `python scripts/package.py` and check the file list.
+- [ ] No AI attribution in git history.
+- [ ] Submit by 8:00 PM ET on Nov 4, an hour before the deadline, then re-open the submission link to confirm.
+- [ ] Rotate the API key afterwards if the project folder was ever synced online or shared with a key in it.
 
-- `muse-spark-1.3`: text call returned READY; ordered probes with a parsed reply.
-- `sam-3.1`: 4 person boxes and 1 bus box on one sample photo; 1 image processed.
+## Owner-only blockers
 
-- Muse function calling through `/chat/completions` (`smoke-tools`): picked a case by tool call. The
-  API accepts only `tool_choice: "auto"`.
-- Full experiment run on the synthetic drawings (run 48925eb343ec406d, 9 calls, about $0.025): Muse
-  chose 4 tests by tool call, SAM 3.1 ran each, Python scored them. SAM found nothing on 3 drawings
-  (false negatives) and the absent case passed. This checks the plumbing only. It is not evidence
-  about SAM on real photos.
+- Take 28 photos of your own after the model release. Until they exist the training overlap check keeps
+  GO_CANDIDATE out of reach.
+- Find a second annotator.
+- Choose the track, Indie or Startup.
+- Read the official Rules.
+- Fix GitHub billing so CI can run.
+- Check the COCO photo licence before showing COCO photos publicly.
 
-- `scripts/live_models_check.ps1`: Muse Wonder replied, Muse Image returned an edited image, and
-  Muse Voice Transcribe returned the exact sentence from a Windows text-to-speech WAV.
-- `stress-gen` made 2 variants (low light, glare) of the synthetic `normal` drawing with Muse Image.
-  `live_experiment.ps1 -Dataset generated` ran them (run f6fa80a1f7704b3e). SAM found nothing in
-  either, scored as false negatives. Generated drawings are plumbing checks, not evidence.
-- Web page, live: Run experiment on the generated dataset, and the model panel marked Muse Spark and
-  SAM as used. A Muse Wonder audit was written for run f6fa80a1f7704b3e through the CLI.
+## Reference facts
 
-- Real labeled photos (Open Images V7, 24 cases): 20 of 22 scored cases passed after two doubtful labels were adjudicated
-  (20 of 24 before). The two failures are real false positives. Details and caveats in `docs/results-open-images.md`.
-- Masks drawn over a real photo in the browser: the SAM mask follows a real hydrant and the human box
-  agrees (IoU 0.988).
-- Measured corruptions: 22 of 22 tested variants passed (the agent stopped at 22 of 40).
-- Agent versus random order: no evidence the agent beats chance on 24 cases (p 0.83).
-
-Not yet verified live: any result on red safety tags on a maintenance tray (your own photos), and a
-voice note recorded from a browser microphone (the voice endpoint is tested with a WAV file only).
-
-## Using each model in the demo
-
-1. Show the five model cards on the page and say what each does.
-2. Muse Spark and SAM: run on real photos.
-3. Muse Image: press Generate variants, run the generated set, and say these are stress tests with
-   inherited boxes, not real photos.
-4. Muse Voice Transcribe: on one failed case press Record voice note and say your verdict aloud.
-5. Muse Wonder: press Write audit and read the "What this run does not show" part.
-
-## Checklist
-
-- [ ] Accept the final rules and confirm track, eligibility and required fields.
-- [x] Real labeled evidence set: Open Images (`docs/dataset.md`).
-- [ ] Optional: your own tray photos. Label them with `python -m blindspot_ci.cli label`, import, then run the live experiment on `-Dataset real`.
-- [ ] Run `.\scripts\live_check.ps1`, then `.\scripts\live_experiment.ps1 -Dataset real`.
-- [ ] Record the demo video.
-- [ ] `python -m pytest` and `python -m blindspot_ci.cli demo` pass on a clean environment.
-- [ ] `python scripts/package.py`, then check the file list: no `.env`, key, cache or private image.
-- [ ] Describe it accurately: state the number of real photos, the threshold and which results are live.
-- [ ] Replace the API key if the project folder was ever synced online or shared with a key in it.
-- [ ] Submit through the Cerebral Valley portal before the deadline, then reopen the link to check.
+- Pricing used for estimates: Muse Spark 1.3 Standard $1.25 per million input tokens and $4.25 per million
+  output tokens; SAM 3.1 $2.50 per 1,000 images. Default spend cap is $5 per run.
+- Keep to Meta's terms: do not share keys, do not bypass rate limits, use Standard mode, keep Meta's labels on
+  real outputs, use only authorized media. The official Rules are authoritative.

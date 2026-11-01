@@ -70,7 +70,7 @@ error, or probes that did not run (iteration limit, planner stop, budget stop).
 - Muse tool calling goes through Chat Completions. It was verified live on 2026-10-31 with the
   synthetic drawings. The API accepts only `tool_choice: "auto"`, so a reply with no tool call stops
   the run safely.
-- Generated variants inherit the source box on the assumption that Muse Image kept the tag in place.
+- Generated variants inherit the source box on the assumption that Muse Image kept the object in place.
   Nothing checks that automatically. A person must look at the yellow box in the trace.
 - Muse Wonder writes free text from the saved results. It can be wrong, so the audit is labeled as
   model-written and a person reads it next to the scores.

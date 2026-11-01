@@ -2,13 +2,13 @@
 
 ## In plain words
 
-You can point a vision model at a photo and ask it to outline "the red safety tag". Sometimes it
-misses the tag, or outlines something else. BLINDSPOT CI finds out how often and under which
+You can point a vision model at a photo and ask it to outline an object. The original planned use case was a red safety tag on a maintenance tray, which
+has not been tested. Sometimes the model misses the object, or outlines something else. BLINDSPOT CI finds out how often and under which
 conditions, before anyone relies on it.
 
 It does four things:
 1. Takes photos that a person has labeled (a person drew a box around the object, or confirmed it is absent).
-2. Lets an AI agent (Muse Spark) choose which photo to test next, so it hunts for weak spots instead of testing at random.
+2. Picks which photo to test next. A Muse Spark agent planner is implemented, but the saved COCO and DAVIS runs used a scripted order, and no evidence shows the agent beats random order.
 3. Asks the model under test (SAM 3.1) to outline the object, then scores the result with plain Python against the person's box. No model grades itself.
 4. Writes a report: pass counts with uncertainty, every failure with its photo, and an evaluation card.
 

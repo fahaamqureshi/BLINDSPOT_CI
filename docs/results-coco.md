@@ -35,6 +35,6 @@ is one where COCO has no annotation of the requested class. Nothing was labeled 
 ## Limits
 
 - Slices have 10 to 30 cases, so intervals are wide. The card lists them.
-- COCO is a public benchmark that models may have seen in training. It says little about a tray-tag scene.
+- COCO is a public benchmark that models may have seen in training. It says little about a tray scene.
 - One run, one pass. The agent-chosen order was not run on this set.
 - Labels are crowd-worker boxes derived from polygons, with no second annotator here.

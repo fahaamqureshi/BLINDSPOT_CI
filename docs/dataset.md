@@ -7,8 +7,8 @@ mixed in one result.
 
 ## Open data: Open Images V7
 
-`scripts/fetch_open_data.py` builds a real, human-labeled set with no photography. The task is red
-safety objects: fire hydrants and stop signs. Boxes were drawn or verified by Open Images annotators,
+`scripts/fetch_open_data.py` builds a real, human-labeled set with no photography. The set holds
+everyday red coloured objects: fire hydrants and stop signs. Boxes were drawn or verified by Open Images annotators,
 never by SAM or Muse. Absent cases are images where annotators verified the class is not there.
 Every image keeps its own CC BY license, author and landing page in `label_provenance`.
 
@@ -25,7 +25,7 @@ be misaligned. Conditions are measured, not guessed: `low_light` (mean luminance
 `normal`, and `absent`. The photos and the manifest stay out of git and out of the ZIP, and the
 script rebuilds them.
 
-Limits: the objects are not a maintenance tray tag, so the result says how SAM 3.1 handles red safety
+Limits: the objects are not a maintenance tray tag, so the result says how SAM 3.1 handles everyday red
 objects in public photos, not how it handles your tag. Open Images boxes are not perfect, and a class
 can be present but unlabeled outside the verified negatives. Quote counts, not percentages.
 
@@ -33,8 +33,8 @@ can be present but unlabeled outside the verified negatives. Quote counts, not p
 
 ## What to photograph
 
-One task: a red safety tag on a maintenance tray. Take 20 to 40 photos of your own tray and tag. Aim
-for a mix, so the agent has something to choose between:
+The planned use case, not yet tested: a red safety tag on a maintenance tray. Take 20 to 40 photos of your own tray and tag. Aim
+for a mix, so the test order has something to choose between:
 
 | condition | how many | what the label says |
 | --- | --- | --- |
