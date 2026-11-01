@@ -66,4 +66,4 @@ def test_card_and_app_include_release_gate(tmp_path, monkeypatch):
 
     assert "Decision: DEMO_ONLY" in card.text
     assert "Human review is mandatory. GO_CANDIDATE is not a deployment approval or safety certification." in card.text
-    assert page.status_code == 200 and "id:'release-gate'" in page.text and "Failing conditions" in page.text
+    assert page.status_code == 200 and "/release-gate" in page.text and "What to fix" in page.text

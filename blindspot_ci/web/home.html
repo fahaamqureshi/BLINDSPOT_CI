@@ -1,93 +1,110 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>BLINDSPOT CI</title>
+<title>BLINDSPOT CI: is your vision model ready to ship?</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect x=%278%27 y=%278%27 width=%2716%27 height=%2716%27 fill=%27%23c8281c%27 transform=%27rotate(45 16 16)%27/%3E%3C/svg%3E">
-<meta name="description" content="An agent that finds where a vision model misses red safety objects, and scores each miss against a box a person drew.">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,700..900&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<meta name="description" content="A test harness and conservative release gate that tells a QA engineer whether a vision model is ready to ship, why, and what to fix.">
 <link rel="stylesheet" href="/site.css">
 </head><body>
 <a class="skip" href="#main">Skip to content</a>
-<nav class="top"><div class="wrap"><b><i></i>BLINDSPOT CI</b>
- <a href="/" aria-current="page">Overview</a><a href="/demo">Demo</a><a href="/guide">Guide</a><a href="/app">Run a test</a></div></nav>
+<nav class="top" aria-label="Main"><div class="wrap"><b><i></i>BLINDSPOT CI</b>
+ <a href="/" aria-current="page">Home</a><a href="/app">Example result</a><a href="/guide">How it works</a></div></nav>
 
 <main class="wrap" id="main">
-<section class="hero">
- <div>
-  <h1>Find where your vision model misses the red tag.</h1>
-  <p class="lede">BLINDSPOT CI tests a segmentation model on photos a person has labeled. An AI agent picks which test to run next. Plain Python scores every result. Nothing here is a safety approval.</p>
-  <div class="btns"><a class="btn" href="/demo">Watch a free demo run</a><a class="btn alt" href="/guide">Read the guide</a></div>
- </div>
- <div class="play">
-  <svg id="board" viewBox="0 0 480 320" role="group" aria-label="Box overlap playground: a red safety tag with the model box and your label box">
-   <defs><pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="rgba(0,0,0,.12)" stroke-width="1"/></pattern></defs>
-   <rect width="480" height="320" fill="url(#grid)"/>
-   <rect x="210" y="96" width="120" height="132" fill="var(--tag)"/>
-   <circle cx="270" cy="124" r="12" fill="#e8ebee"/>
-   <rect x="228" y="156" width="84" height="8" fill="#e8ebee"/><rect x="228" y="176" width="64" height="8" fill="#e8ebee"/>
-   <rect id="sam" x="206" y="92" width="128" height="140" fill="none" stroke="var(--sam)" stroke-width="5"/>
-   <g id="human" tabindex="0" role="group" aria-label="Your label box. Arrow keys move it, shift and arrow keys resize it." style="cursor:move">
-    <rect id="hrect" x="150" y="70" width="120" height="120" fill="rgba(168,111,0,.12)" stroke="var(--human)" stroke-width="5" stroke-dasharray="14 8"/>
-    <circle id="hgrip" cx="270" cy="190" r="22" fill="transparent" style="cursor:nwse-resize"/><circle id="hdot" cx="270" cy="190" r="11" fill="var(--human)" pointer-events="none"/>
-   </g>
-  </svg>
-  <div class="readout" role="status"><output id="iou" aria-labelledby="iou-label">0.00</output><span id="iou-label">overlap (IoU)</span><span id="verdict" class="verdict fail">FAIL</span></div>
-  <div class="key"><span style="--c:var(--sam)">Model box</span><span style="--c:var(--human)">Your label (drag me)</span></div>
-  <p>Drag the amber box, or focus it and use the arrow keys. A test passes when the overlap is at least 0.35. This is the scorer's default rule.</p>
- </div>
+<section class="hero1">
+ <p class="kicker">For QA engineers</p>
+ <h1>Find out if your vision model is ready to ship, and what to fix first.</h1>
+ <p class="lede">BLINDSPOT CI tests a model that finds objects in photos, using photos a person labeled. Then a cautious release check says ship, do not ship, or not enough evidence, with the reasons.</p>
 </section>
 
-<section>
- <h2>What it has found so far</h2>
- <p>Every number below comes from a saved run that you can reopen. Labels came from people, never from the models. The tests ran on SAM 3.1 through Meta's API.</p>
- <div class="tablewrap" tabindex="0" role="region" aria-label="Results by test set"><table>
-  <tr><th>Test set</th><th>Result</th><th>What to take from it</th></tr>
-  <tr><td>Open Images photos: fire hydrants and stop signs, 24 photos</td><td class="num">20 of 22</td><td>The two misses are look-alikes the model boxed by mistake (a road sign, a metal object). Two doubtful labels were set aside first; before that it was 20 of 24 (64% to 93%). One person made that call and nobody else reviewed it. After it, the 95% interval is 72% to 98%.</td></tr>
-  <tr><td>Harder Open Images set: dark, cut-off and look-alike scenes, 21 photos</td><td class="num">20 of 21</td><td>The miss is a dark traffic light. Only one hard negative (a road sign with no stop sign) survived, so false alarms are barely tested here. Tests ran in a scripted order, not chosen by the agent.</td></tr>
-  <tr><td>Real video frames from 14 DAVIS clips, 112 frames</td><td class="num">111 of 112</td><td>The miss is a small soccer ball. Frames in one clip look alike, so the real sample is about 14 clips. Boat frames had the lowest overlap (about 0.70 to 0.75) but still passed. The objects are large, none left the frame, and tracking was not tested. Scripted order.</td></tr>
-  <tr><td>Measured corruptions (low light, blur, JPEG, contrast), 22 tests</td><td class="num">22 of 22</td><td>The 22 tests came from 5 photos that had already passed, and the agent stopped at 22 of 40. This shows no failure in those 22. It does not show the other 18 would pass (interval about 85% to 100%).</td></tr>
-  <tr><td>Did the agent beat a random test order?</td><td class="num">No sign</td><td>It found 1 of 4 failures in 8 tests (the 4 counts the two doubtful labels). A random order finds 1.3 on average (p = 0.83).</td></tr>
- </table></div>
- <p class="note" style="margin-top:18px">These sets are public photos of hydrants and stop signs, not your maintenance tray tag. A pass is one example that met the threshold. It does not show the model is safe on other photos.</p>
+<section aria-labelledby="ex-h" style="border-top:0;padding-top:8px">
+ <h2 id="ex-h">A real result</h2>
+ <div class="vb" id="card" role="status"><p class="vline">Loading the saved example.</p></div>
+ <div id="more"></div>
 </section>
 
-<section>
- <h2>How one test works</h2>
- <div class="flow">
-  <div><h3>An agent chooses</h3><p>Muse Spark 1.3 reads the list of tests with the labels hidden. It calls <code>choose_next_test</code> or <code>finish_testing</code>. The server rejects any other call.</p></div>
-  <div><h3>The model segments</h3><p>SAM 3.1 gets the photo and a word such as "fire hydrant". It returns boxes and masks.</p></div>
-  <div><h3>Python scores</h3><p>Code compares the best box with the box a person drew. No model grades itself.</p></div>
-  <div><h3>You get a report</h3><p>Pass counts with uncertainty, every failure with its photo, a release gate decision and an evaluation card you can download.</p></div>
- </div>
- <p style="margin-top:18px">Three more Meta models help around the edges: Muse Image makes labeled dark and blurry variants, Muse Voice Transcribe turns a spoken reviewer note into text, and Muse Wonder writes a plain-language audit. None of them can change a score.</p>
+<section aria-labelledby="how-h">
+ <h2 id="how-h">How a check works</h2>
+ <ol class="steps3">
+  <li><b>Pick photos a person labeled</b>A person drew a box around the object in each photo. A model never writes the labels.</li>
+  <li><b>The model outlines the object</b>The model under test looks at each photo and draws its own box.</li>
+  <li><b>Plain code scores it</b>Python compares the two boxes. A test passes when they overlap enough. No model grades itself.
+   <details class="what"><summary>What is IoU?</summary><p>IoU means intersection over union. It is the area the two boxes share divided by the area they cover together. 1.00 is a perfect match and 0.00 is no overlap.</p></details></li>
+ </ol>
 </section>
 
-<section>
- <h2>What the release gate decides</h2>
- <p>After a run is saved, the release gate reads it and gives one decision with the reasons and the next experiments to run. It needs no key and costs nothing. Human review is mandatory for every decision.</p>
- <dl>
-  <dt>DEMO_ONLY</dt><dd>Mock, synthetic or generated evidence. It can show nothing else.</dd>
-  <dt>NO_GO</dt><dd>A required condition is below the 0.90 bar on enough scored cases. The saved COCO live run gives this: low light passed 6 of 10 and small object passed 19 of 24.</dd>
-  <dt>NEEDS_REVIEW</dt><dd>Nothing is clearly failing, but the evidence is thin, uncertain, unreviewed or not live.</dd>
-  <dt>GO_CANDIDATE</dt><dd>Every check passed. It is not an approval and not a safety certification. A person still decides.</dd>
- </dl>
- <p><a class="btn alt" href="/guide#gate">How the gate works</a></p>
+<section aria-labelledby="trust-h">
+ <h2 id="trust-h">What this is not</h2>
+ <p class="trust"><b>Not a safety approval. A person always decides.</b> The check covers the listed model, photos and dates only. A pass means the model met the bar on those photos.</p>
 </section>
 
-<section>
- <h2>Try it yourself</h2>
- <div class="cols">
-  <div><h3>Free and offline</h3><p>The demo uses scripted answers on five drawings. It costs nothing and needs no key. It proves the software works. It says nothing about SAM.</p><p><a class="btn" href="/demo">Open the demo</a></p></div>
-  <div><h3>Live with your key</h3><p>Add a Meta key to <code>.env</code>, switch the provider to <code>meta</code> and run the full loop on labeled photos. A live run costs a few cents.</p><p><a class="btn alt" href="/app">Open the test tool</a></p></div>
-  <div><h3>Your own photos</h3><p>Draw a box on each photo with the local labeling tool, import them and run the same tests on your tray tag.</p><p><a class="btn alt" href="/guide#own-photos">See the steps</a></p></div>
+<section aria-labelledby="play-h">
+ <h2 id="play-h">Try the overlap score</h2>
+ <div class="hero" style="padding-top:0">
+  <div>
+   <p>The score for each test is the overlap of two boxes. Move the amber box over the teal one and watch the number change. A test passes when the overlap is at least 0.35, which is the scorer's default.</p>
+  </div>
+  <div class="play">
+   <svg id="board" viewBox="0 0 480 320" role="group" aria-label="Box overlap playground: an object, the model box and your label box">
+    <defs><pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="rgba(0,0,0,.12)" stroke-width="1"/></pattern></defs>
+    <rect width="480" height="320" fill="url(#grid)"/>
+    <rect x="210" y="96" width="120" height="132" fill="#6b7a88"/>
+    <circle cx="270" cy="124" r="12" fill="#e8ebee"/>
+    <rect x="228" y="156" width="84" height="8" fill="#e8ebee"/><rect x="228" y="176" width="64" height="8" fill="#e8ebee"/>
+    <rect id="sam" x="206" y="92" width="128" height="140" fill="none" stroke="var(--sam)" stroke-width="5"/>
+    <g id="human" tabindex="0" role="group" aria-label="Your label box. Arrow keys move it, shift and arrow keys resize it." style="cursor:move">
+     <rect id="hrect" x="150" y="70" width="120" height="120" fill="rgba(168,111,0,.12)" stroke="var(--human)" stroke-width="5" stroke-dasharray="14 8"/>
+     <circle id="hgrip" cx="270" cy="190" r="22" fill="transparent" style="cursor:nwse-resize"/><circle id="hdot" cx="270" cy="190" r="11" fill="var(--human)" pointer-events="none"/>
+    </g>
+   </svg>
+   <div class="readout" role="status"><output id="iou" aria-labelledby="iou-label">0.00</output><span id="iou-label">overlap (IoU)</span><span id="verdict" class="verdict fail">FAIL</span></div>
+   <div class="key"><span style="--c:var(--sam)">Model box</span><span style="--c:var(--human)">Your label (drag me)</span></div>
+   <p>Drag the amber box, or focus it and use the arrow keys. Hold shift to resize.</p>
+  </div>
  </div>
 </section>
 </main>
 
-<footer><div class="wrap">BLINDSPOT CI is a bounded evaluation, not a safety approval. Results hold for the listed models, prompts and dates only. Built for the Meta hackathon.</div></footer>
+<footer><div class="wrap"><p>BLINDSPOT CI is a bounded evaluation, not a safety approval. Results hold for the listed models, photos and dates only.</p></div></footer>
 
 <script>
-(()=>{const NS='http://www.w3.org/2000/svg',svg=document.getElementById('board'),hr=document.getElementById('hrect'),grip=document.getElementById('hgrip'),dot=document.getElementById('hdot'),g=document.getElementById('human');
+const $=id=>document.getElementById(id);
+function h(tag,attrs,...kids){const e=document.createElement(tag);for(const[k,v]of Object.entries(attrs||{}))e.setAttribute(k,v);for(const kid of kids)e.append(kid);return e}
+const LABEL={NO_GO:['Do not ship yet','A required kind of photo is below the bar. Fix it and test again.'],
+ NEEDS_REVIEW:['Not enough evidence yet','Nothing is clearly failing, but there are too few photos, no second labeler, or the run was not live.'],
+ GO_CANDIDATE:['Passed every check','A person still decides. This is not a safety approval.'],
+ DEMO_ONLY:['Practice data only','Mock or generated data. It shows the software works, not how good the model is.']};
+const KINDS={normal:'normal photos',low_light:'low light photos',small_object:'small objects',truncated:'cut off objects',absent:'photos without the object',lookalike_scene:'look-alike scenes',other_object:'photos of other objects'};
+const kind=k=>KINDS[k]||k.replaceAll('_',' ');
+const barText=r=>{const t=r*10;return Math.abs(t-Math.round(t))<1e-9?`${Math.round(t)} out of 10`:`${Math.round(r*100)} out of 100`};
+const times=(c,k)=>k==='absent'?`correctly found nothing ${c.passed} times out of ${c.scored}`:`found the object ${c.passed} times out of ${c.scored}`;
+function sentence(gate){
+  const p=gate.policy,cs=gate.conditions,fails=gate.failing.map(f=>f.split(':')[0]);
+  if(gate.decision==='NO_GO'&&fails.length){
+    const parts=fails.map((k,i)=>i===0?`On ${kind(k)} the model ${times(cs[k],k)}`:`on ${kind(k)} ${times(cs[k],k)}`);
+    return parts.join(', and ')+`. Our bar is ${barText(p.min_pass_rate)}.`}
+  if(gate.decision==='DEMO_ONLY')return 'These answers came from a script or generated images, so the numbers say nothing about the model.';
+  const thin=Object.keys(cs).filter(k=>cs[k].scored<p.min_cases_per_condition);
+  if(gate.decision==='GO_CANDIDATE')return `Every required kind of photo met our bar of ${barText(p.min_pass_rate)} on at least ${p.min_cases_per_condition} photos.`;
+  return thin.length?`No required kind of photo is clearly below the bar, but ${thin.length} of ${Object.keys(cs).length} have fewer than ${p.min_cases_per_condition} photos: ${thin.map(kind).join(', ')}.`:'No required kind of photo is clearly below the bar.'}
+const api=async p=>{const r=await fetch(p);if(!r.ok)throw Error(r.status);return r.json()};
+async function main(){
+  const rows=await api('/api/examples');
+  const coco=rows.find(r=>r.dataset==='coco-val2017')||rows[0];
+  if(!coco){$('card').replaceChildren(h('p',{class:'vline'},'No saved example is available in this copy.'));return}
+  const gate=await api(`/api/runs/${coco.id}/release-gate`),L=LABEL[gate.decision];
+  const live=coco.mode==='LIVE_META';
+  const card=$('card');card.className='vb '+gate.decision;
+  card.replaceChildren(h('p',{class:'vlabel'},L[0],h('span',{class:'vcode'},`(${gate.decision})`)),
+   h('p',{class:'vline'},L[1]),h('p',{class:'vsent'},sentence(gate)),
+   h('p',{class:'vmeta'},`${coco.title}. ${coco.tests} tests, ${live?'real answers from the model':'practice answers from a script'}.`),
+   h('a',{class:'btn',href:`/app?run=${coco.id}`},'See the full result'));
+  const more=$('more');
+  for(const r of rows.filter(x=>x.id!==coco.id)){
+    const g=await api(`/api/runs/${r.id}/release-gate`);
+    more.append(h('div',{class:'row2'},h('b',{},r.title+': '+LABEL[g.decision][0]),h('p',{style:'margin:4px 0 8px'},`${r.passed} of ${r.scored} tests passed. ${sentence(g)}`),h('a',{href:`/app?run=${r.id}`},'See this result')))}}
+main().catch(e=>$('card').replaceChildren(h('p',{class:'vline'},'The saved example could not be loaded ('+e.message+'). Open the example result page to try again.'),h('a',{class:'btn',href:'/app'},'See the full result')));
+
+(()=>{const svg=document.getElementById('board'),hr=document.getElementById('hrect'),grip=document.getElementById('hgrip'),dot=document.getElementById('hdot'),g=document.getElementById('human');
 const SAM=[206,92,334,232],MIN=24;let b=[150,70,270,190];
 function iou(a,c){const w=Math.max(0,Math.min(a[2],c[2])-Math.max(a[0],c[0])),h=Math.max(0,Math.min(a[3],c[3])-Math.max(a[1],c[1])),i=w*h,u=(a[2]-a[0])*(a[3]-a[1])+(c[2]-c[0])*(c[3]-c[1])-i;return u?i/u:0}
 function draw(){hr.setAttribute('x',b[0]);hr.setAttribute('y',b[1]);hr.setAttribute('width',b[2]-b[0]);hr.setAttribute('height',b[3]-b[1]);grip.setAttribute('cx',b[2]);grip.setAttribute('cy',b[3]);dot.setAttribute('cx',b[2]);dot.setAttribute('cy',b[3]);
