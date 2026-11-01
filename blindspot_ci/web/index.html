@@ -4,7 +4,7 @@
 <meta name="description" content="The saved result of a BLINDSPOT CI check: the release decision, why, and what to fix.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect x=%278%27 y=%278%27 width=%2716%27 height=%2716%27 fill=%27%23c8281c%27 transform=%27rotate(45 16 16)%27/%3E%3C/svg%3E">
 <link rel="stylesheet" href="/site.css">
-</head><body>
+</head><body class="pending">
 <a class="skip" href="#main">Skip to content</a>
 <nav class="top" aria-label="Main"><div class="wrap"><b><i></i>BLINDSPOT CI</b>
  <a href="/">Home</a><a href="/app" aria-current="page">Example result</a><a href="/guide">How it works</a></div></nav>
@@ -311,5 +311,5 @@ $('audit-btn').addEventListener('click',async()=>{
   if(!cur)return;const b=$('audit-btn');b.disabled=true;$('audit-msg').textContent='Muse Wonder is writing';
   try{const a=await api(`/api/runs/${cur.id}/audit`,{method:'POST'});$('audit-out').textContent=a.text;used.add('muse-wonder-1.0');drawModels();$('audit-msg').textContent='Written by '+a.model}
   catch(e){$('audit-msg').textContent='Audit failed: '+e.message}finally{b.disabled=false}});
-init().catch(e=>{fail('Cannot reach the server ('+e.message+'). Start it with python -m blindspot_ci.cli serve, then reload this page.');$('run').disabled=true;$('cases').textContent='Server not reachable.'});
+init().catch(e=>{fail('Cannot reach the server ('+e.message+'). Start it with python -m blindspot_ci.cli serve, then reload this page.');$('run').disabled=true;$('cases').textContent='Server not reachable.'}).finally(()=>document.body.classList.remove('pending'));
 </script></body></html>
