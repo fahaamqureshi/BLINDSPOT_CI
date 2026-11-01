@@ -29,16 +29,24 @@ def _run(plan, mode="LIVE_META", dataset=REAL, run_id="a" * 16):
 STRONG = {c: (60, 0, 0) for c in rg.DEFAULT_POLICY["required_conditions"]}
 
 
+FRESH = {"id": "owner-fresh", "type": "HUMAN_LABELED_OWN_PHOTOS"}
+
+
+@pytest.fixture
+def fresh(monkeypatch):
+    monkeypatch.setitem(rg.TRAINING_OVERLAP, "owner-fresh", rg.NOT_SEEN)
+
+
 def _decide(run, agreement=GOOD_AGREEMENT, policy=None):
     return rg.evaluate(run, policy or rg.load_policy(None), agreement)
 
 
-def test_go_candidate_and_human_review_sentence():
-    report = _decide(_run(STRONG))
+def test_go_candidate_and_human_review_sentence(fresh):
+    report = _decide(_run(STRONG, dataset=FRESH))
     assert report["decision"] == rg.GO_CANDIDATE
     text = rg.render(report)
     assert "Human review is mandatory. GO_CANDIDATE is not a deployment approval or safety certification." in text
-    assert "Human review is mandatory" in rg.render(_decide(_run(STRONG), None), "markdown")
+    assert "Human review is mandatory" in rg.render(_decide(_run(STRONG, dataset=FRESH), None), "markdown")
 
 
 def test_six_of_ten_low_light_is_no_go():
@@ -117,8 +125,8 @@ def test_determinism_and_traceability():
 
 @pytest.mark.parametrize("plan,expected", [(STRONG, 0), ({**STRONG, "low_light": (6, 4, 0)}, 1),
                                            ({**STRONG, "truncated": (5, 0, 0)}, 2)])
-def test_cli_exit_codes(tmp_path, monkeypatch, capsys, plan, expected):
-    (tmp_path / f"{'b' * 16}.json").write_text(json.dumps(_run(plan, run_id="b" * 16)))
+def test_cli_exit_codes(tmp_path, monkeypatch, capsys, plan, expected, fresh):
+    (tmp_path / f"{'b' * 16}.json").write_text(json.dumps(_run(plan, dataset=FRESH, run_id="b" * 16)))
     agreement = tmp_path / "agree.json"
     agreement.write_text(json.dumps(GOOD_AGREEMENT))
     monkeypatch.setenv("BLINDSPOT_RUNS_DIR", str(tmp_path))
@@ -139,3 +147,51 @@ def test_cli_demo_only_and_bad_input_exit_codes(tmp_path, monkeypatch):
         with pytest.raises(SystemExit) as exc:
             cli.main()
         assert exc.value.code == code
+
+
+def _overlap(report):
+    return next(c for c in report["checks"] if c["name"] == "training overlap")
+
+
+def test_likely_seen_dataset_needs_review_even_if_all_else_passes():
+    davis = {"id": "davis-2017-frames", "type": "HUMAN_LABELED_OPEN_VIDEO_FRAMES"}
+    report = _decide(_run(STRONG, dataset=davis))
+    assert report["decision"] == rg.NEEDS_REVIEW
+    check = _overlap(report)
+    assert check["status"] == "FAIL" and "likely seen in SAM training" in check["detail"]
+    assert "after the model release" in check["fix"]
+
+
+def test_not_seen_dataset_is_go_candidate(fresh):
+    report = _decide(_run(STRONG, dataset=FRESH))
+    assert report["decision"] == rg.GO_CANDIDATE and _overlap(report)["status"] == "PASS"
+
+
+def test_unlisted_dataset_needs_review():
+    other = {"id": "never-listed", "type": "HUMAN_LABELED_OPEN_DATA"}
+    report = _decide(_run(STRONG, dataset=other))
+    assert report["decision"] == rg.NEEDS_REVIEW and "unknown" in _overlap(report)["detail"]
+
+
+def test_overlap_never_changes_no_go_or_demo_only():
+    davis = {"id": "davis-2017-frames", "type": "HUMAN_LABELED_OPEN_VIDEO_FRAMES"}
+    assert _decide(_run({**STRONG, "low_light": (6, 4, 0)}, dataset=davis))["decision"] == rg.NO_GO
+    assert _decide(_run(STRONG, mode="MOCK_FIXTURE", dataset=davis))["decision"] == rg.DEMO_ONLY
+
+
+def test_policy_key_false_is_na_and_go_candidate(fresh):
+    policy = {**rg.load_policy(None), "require_no_training_overlap": False}
+    report = _decide(_run(STRONG), policy=policy)
+    assert report["decision"] == rg.GO_CANDIDATE and _overlap(report)["status"] == "NA"
+
+
+def test_boolean_accepted_only_for_overlap_key(tmp_path):
+    ok, bad = tmp_path / "ok.json", tmp_path / "bad.json"
+    ok.write_text(json.dumps({"require_no_training_overlap": False}))
+    assert rg.load_policy(ok)["require_no_training_overlap"] is False
+    bad.write_text(json.dumps({"min_pass_rate": True}))
+    with pytest.raises(ValueError, match="min_pass_rate"):
+        rg.load_policy(bad)
+    bad.write_text(json.dumps({"require_no_training_overlap": 1}))
+    with pytest.raises(ValueError, match="require_no_training_overlap"):
+        rg.load_policy(bad)

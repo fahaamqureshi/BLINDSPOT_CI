@@ -41,12 +41,22 @@ such as low_light_s3 count under low_light. For each required condition the gate
 Across the run it also checks the unscored share, second annotator coverage, kappa, and that the mode
 is LIVE_META, CACHE_LIVE_META or MIXED_CACHED_AND_LIVE_META.
 
+The training overlap check asks whether the model may have already seen the test set. It passes only
+for a dataset listed as not_seen, such as photos you took yourself after the model release. Anything
+else fails it, and a fail can lower GO_CANDIDATE to NEEDS_REVIEW but never changes NO_GO or DEMO_ONLY.
+The table is TRAINING_OVERLAP in release_gate.py. DAVIS is marked likely seen. COCO, Open Images and
+MOT20 are marked unknown, as is any unlisted dataset. This overlap is unverified: it comes from
+summaries of the SAM 2 paper (https://arxiv.org/abs/2408.00714) and the SAM 3 paper
+(https://arxiv.org/abs/2511.16719), which states no contamination analysis. Read both papers
+before quoting it. Set require_no_training_overlap to false to skip the check (status NA).
+
 ## Policy
 
 DEFAULT_POLICY has policy_version "1". A JSON file overrides keys; unknown keys are rejected. The
 policy used is printed with every result. Keys: required_conditions (normal, low_light,
 small_object, truncated, absent), min_judged_cases 10, min_pass_rate 0.90, min_cases_per_condition
-29 (power.cases_needed(0.10)), max_unscored_share 0.05, min_second_annotator_share 0.30, min_kappa 0.60.
+29 (power.cases_needed(0.10)), max_unscored_share 0.05, min_second_annotator_share 0.30, min_kappa 0.60,
+require_no_training_overlap true (the only boolean key).
 
 Second annotator coverage is cases_compared in the agreement file divided by distinct cases in the run.
 

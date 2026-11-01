@@ -30,6 +30,20 @@ DEFAULT_POLICY: dict[str, Any] = {
     "max_unscored_share": 0.05,
     "min_second_annotator_share": 0.30,
     "min_kappa": 0.60,
+    "require_no_training_overlap": True,
+}
+BOOL_KEYS = ("require_no_training_overlap",)
+LIKELY_SEEN, UNKNOWN_OVERLAP, NOT_SEEN = "likely_seen", "unknown", "not_seen"
+# Unverified. Taken from summaries of the SAM 2 and SAM 3 papers; the owner must check the papers.
+# not_seen is only for photos the owner took after the model release, and no id is listed here
+# because no manifest in this repo records who took the photos. Unlisted datasets count as unknown.
+TRAINING_OVERLAP: dict[str, str] = {
+    "davis-2017-frames": LIKELY_SEEN,
+    "coco-val2017": UNKNOWN_OVERLAP,
+    "open-images-v7-validation": UNKNOWN_OVERLAP,
+    "open-images-v7": UNKNOWN_OVERLAP,
+    "open-images-v7-hard": UNKNOWN_OVERLAP,
+    "mot20-long": UNKNOWN_OVERLAP,
 }
 _EXTRA_CAP = 2000
 
@@ -51,8 +65,11 @@ def load_policy(path: str | Path | None) -> dict[str, Any]:
     req = policy["required_conditions"]
     if not isinstance(req, list) or not req or not all(isinstance(c, str) for c in req):
         raise ValueError("required_conditions must be a non-empty list of names")
+    for key in BOOL_KEYS:
+        if type(policy[key]) is not bool:
+            raise ValueError(f"policy key {key} must be true or false")
     for key in DEFAULT_POLICY:
-        if key not in ("policy_version", "required_conditions") and (
+        if key not in ("policy_version", "required_conditions", *BOOL_KEYS) and (
                 isinstance(policy[key], bool) or not isinstance(policy[key], int | float)):
             raise ValueError(f"policy key {key} must be a number")
     return policy
@@ -176,6 +193,18 @@ def evaluate(run: dict[str, Any], policy: dict[str, Any], agreement: dict[str, A
     review |= not_live
     checks.append(_check("live evidence", "FAIL" if not_live else "PASS", f"mode {run.get('mode')}",
                          "re-run against the live model so the evidence is not a stand-in" if not_live else None))
+    ds_id = str(dataset.get("id"))
+    overlap = TRAINING_OVERLAP.get(ds_id, UNKNOWN_OVERLAP)
+    if not policy["require_no_training_overlap"]:
+        checks.append(_check("training overlap", "NA", "not required by policy"))
+    elif overlap == NOT_SEEN:
+        checks.append(_check("training overlap", "PASS", f"{ds_id}: not seen in training"))
+    else:
+        said = "likely seen in SAM training" if overlap == LIKELY_SEEN else "unknown if seen in SAM training"
+        review = True
+        checks.append(_check("training overlap", "FAIL", f"{ds_id}: {said}",
+                             "add photos you took yourself after the model release, or document that "
+                             "the model never saw this set"))
     decision = NO_GO if no_go else NEEDS_REVIEW if review else GO_CANDIDATE
     fixes = [c["fix"] for c in checks if c["status"] == "FAIL" and c["fix"]]
     return {**base, "decision": decision, "checks": checks, "next_experiments": sorted(set(fixes))}
