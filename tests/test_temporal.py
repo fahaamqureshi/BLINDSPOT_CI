@@ -213,6 +213,9 @@ def test_long_video_scores_raw_output_and_temporal_metrics(tmp_path):
     text = render_temporal_report(tmp_path / "runs", report["id"])
     assert "ten equal time bins" in text
     assert "never recovered" in text
+    assert "miss runs; recovery median" in text
+    assert "target not returned" in text
+    assert "box returned but below the overlap bar" in text
     assert "Target retention" in text
     assert "hidden parts" in text and "fixed-camera" in text
     assert "strongly correlated" in text

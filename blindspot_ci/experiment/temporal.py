@@ -553,6 +553,14 @@ def _percentile(values: list[float], fraction: float) -> float | None:
     return ordered[lower] + (ordered[upper] - ordered[lower]) * (position - lower)
 
 
+def _recovery_stat(value: float | None, fps: float) -> str:
+    return "n/a" if value is None else f"{value:.1f} frames ({value / fps:.2f} seconds)"
+
+
+def _failure_share(count: int, total: int) -> str:
+    return "n/a" if not total else f"{count / total:.1%}"
+
+
 def render_temporal_report(runs_dir: Path, run_id: str) -> str:
     """Render the saved temporal evidence without reading the manifest or using the network."""
     load_run(runs_dir, run_id)
@@ -586,14 +594,25 @@ def render_temporal_report(runs_dir: Path, run_id: str) -> str:
                         cell[0] += row["status"] == PASS
         longest = max((len(item["misses"]) for item in miss_runs), default=0)
         longest_seconds = longest / fps if fps else 0.0
-        recoveries = [((item["recovery"]["frame"] - item["misses"][0]["frame"]),
-                       (item["recovery"]["frame"] - item["misses"][0]["frame"]) / fps)
-                      for item in miss_runs if item["recovery"]]
+        recovery_frames = [item["recovery"]["frame"] - item["misses"][0]["frame"]
+                           for item in miss_runs if item["recovery"]]
         bins = _dropout(all_rows, int(sequence["frame_count"]))
         luminance = [float(item["mean_luminance"]) for item in sequence.get("luminance_samples", [])]
         lum = f"{min(luminance):.2f} to {max(luminance):.2f}" if luminance else "unavailable"
         condition_text = ", ".join(f"{name} {value[0]}/{value[1]}" for name, value in sorted(conditions.items())) or "none"
-        recovery_text = ", ".join(f"{frames} frames ({seconds:.2f} seconds)" for frames, seconds in recoveries) or "none"
+        recovery_median = _percentile([float(value) for value in recovery_frames], 0.5)
+        recovery_p90 = _percentile([float(value) for value in recovery_frames], 0.9)
+        recovery_longest = max(recovery_frames, default=None)
+        recovery_text = (f"{len(miss_runs)} miss runs; recovery median {_recovery_stat(recovery_median, fps)}, "
+                         f"90th percentile {_recovery_stat(recovery_p90, fps)}, "
+                         f"longest {_recovery_stat(recovery_longest, fps)}; "
+                         f"never recovered {never}.")
+        false_negative = sum(row.get("status") == FALSE_NEGATIVE for row in all_rows)
+        localization = sum(row.get("status") == LOCALIZATION for row in all_rows)
+        failure_total = false_negative + localization
+        failure_text = (f"  Failures: target not returned {false_negative}/{failure_total} "
+                        f"({_failure_share(false_negative, failure_total)}); box returned but below the overlap bar "
+                        f"{localization}/{failure_total} ({_failure_share(localization, failure_total)}).")
         dropout_text = ", ".join("n/a" if rate is None else f"{rate:.3f}" for _, _, rate in bins)
         retention_min = _percentile(retentions, 0)
         retention_median = statistics.median(retentions) if retentions else None
@@ -604,11 +623,12 @@ def render_temporal_report(runs_dir: Path, run_id: str) -> str:
         sequence_lines.extend([
             f"{sequence['name']}: longest miss run {longest} frames ({longest_seconds:.2f} seconds).",
             f"  Dropout rate in ten equal time bins: {dropout_text}.",
-            f"  Recovery after miss runs: {recovery_text}; never recovered {never}.",
+            f"  Recovery after miss runs: {recovery_text}",
             f"  Targets held for the whole clip: {held} of {len(sequence['targets'])}.",
             f"  Target retention: {retention_text}.",
             f"  Retention by condition: {condition_text}.",
             f"  Absolute luminance range: {lum}. Dark is relative to each sequence and means little where the range is narrow.",
+            failure_text,
         ])
         request_size = sequence.get("request_frame_size")
         for output_size in sequence.get("output_frame_size", []):

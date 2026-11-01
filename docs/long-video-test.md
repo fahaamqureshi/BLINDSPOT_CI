@@ -64,6 +64,12 @@ overstate certainty. Dark is relative to each sequence and means little when its
 narrow. Use `fixtures/policies/long-video.json` with `release-gate --policy`; it uses the MOT20
 conditions and leaves the default numeric thresholds unchanged.
 
+## How to read the result
+
+In the first real run, most misses were weak box overlap rather than the target not being returned.
+This describes that saved answer, not general model performance. A cut-off stream marks later labeled
+frames as errors so they are not mistaken for model misses.
+
 ## Service returns smaller boxes
 
 The service may decode MOT20-03 at 586 by 440 even though the clip is 1173 by 880. Each returned box
