@@ -67,6 +67,14 @@ recommended next experiments, and traceability: run id, dataset id and type, mod
 file, policy version and the count of distinct image hashes. Labels, file contents and keys are never
 printed. Output is sorted and deterministic.
 
+## Offline IoU sweep
+
+Use `python -m blindspot_ci.cli iou-sweep --run <id>` to rescore saved visible box pairs at
+0.25, 0.35, 0.50 and 0.75. Add `--bars` followed by one or more bars to choose them. Each
+condition shows passes over scored and a Wilson 95 percent interval. Steps without both stored
+boxes are reported as not rescored. The command also flags a condition when its pass or fail
+status against the policy pass bar changes between bars. It makes no model calls and exits 0.
+
 ## In the web app and the card
 
 Open a saved run in `/app` to see the Release gate panel below the results table.

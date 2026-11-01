@@ -260,6 +260,20 @@ def release_gate(args) -> int:
     return rg.EXIT_CODES[report["decision"]]
 
 
+def iou_sweep(args) -> int:
+    from blindspot_ci.experiment.iou_sweep import render_sweep, sweep_run
+    from blindspot_ci.experiment.runner import load_run
+
+    try:
+        run = load_run(Settings().runs_dir, args.run)
+        report = sweep_run(run, tuple(args.bars))
+    except (OSError, ValueError) as exc:
+        print(f"iou-sweep failed: {exc}")
+        return 4
+    print(render_sweep(report))
+    return 0
+
+
 def _raw_source(path: str, sequence: str):
     from pathlib import Path
 
@@ -622,6 +636,9 @@ def main() -> None:
     rg.add_argument("--agreement", help="compare-labels JSON output")
     rg.add_argument("--format", choices=["text", "markdown", "json"], default="text")
     rg.add_argument("--out")
+    ios = sub.add_parser("iou-sweep", help="rescore saved box pairs across IoU bars")
+    ios.add_argument("--run", required=True)
+    ios.add_argument("--bars", nargs="+", type=float, default=[0.25, 0.35, 0.50, 0.75])
     lv = sub.add_parser("long-video", help="seed and score MOT20 long-video tracking")
     lv.add_argument("--manifest")
     lv.add_argument("--sequences", nargs="+")
@@ -725,6 +742,8 @@ def main() -> None:
         raise SystemExit(1 if report["verdict"].startswith("FAIL") else 0)
     if args.command == "release-gate":
         raise SystemExit(release_gate(args))
+    if args.command == "iou-sweep":
+        raise SystemExit(iou_sweep(args))
     if args.command == "long-video":
         raise SystemExit(long_video(args))
     if args.command == "temporal-report":
