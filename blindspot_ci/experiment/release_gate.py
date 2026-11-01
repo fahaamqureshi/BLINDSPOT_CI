@@ -108,6 +108,16 @@ def _check(name: str, status: str, detail: str, fix: str | None = None) -> dict[
     return {"name": name, "status": status, "detail": detail, "fix": fix}
 
 
+def _usable_cluster_interval(groups: dict[str, list[bool]]) -> tuple[list[float] | None, str | None]:
+    """Use a cluster interval only when enough repeated groups give it width."""
+    if not groups:
+        return None, None
+    interval = cluster_interval(groups)
+    if interval is None or len(groups) < 5 or interval[0] == interval[1]:
+        return None, "by clip: n/a (too few clips to estimate)"
+    return interval, None
+
+
 def evaluate(run: dict[str, Any], policy: dict[str, Any], agreement: dict[str, Any] | None = None,
              run_sha256: str | None = None) -> dict[str, Any]:
     dataset = run.get("dataset") or {}
@@ -144,7 +154,7 @@ def evaluate(run: dict[str, Any], policy: dict[str, Any], agreement: dict[str, A
     for cond in sorted(policy["required_conditions"]):
         passed, scored = counts[cond]["passed"], counts[cond]["scored"]
         ci = wilson_interval(passed, scored)
-        cluster_ci = cluster_interval(counts[cond]["groups"])
+        cluster_ci, cluster_note = _usable_cluster_interval(counts[cond]["groups"])
         rate = passed / scored if scored else None
         condition_report = {"passed": passed, "scored": scored, "pass_ci95": ci}
         if cluster_ci is not None:
@@ -153,6 +163,8 @@ def evaluate(run: dict[str, Any], policy: dict[str, Any], agreement: dict[str, A
         shown = f"{passed}/{scored}" + (f", Wilson 95% [{ci[0]}, {ci[1]}]" if ci else "")
         if cluster_ci is not None:
             shown += f", by clip [{cluster_ci[0]}, {cluster_ci[1]}]"
+        elif cluster_note is not None:
+            shown += f", {cluster_note}"
         if scored and scored >= policy["min_judged_cases"] and rate < policy["min_pass_rate"]:
             no_go.append(cond)
             base["failing"].append(f"{cond}: {shown}, pass rate {rate:.3f} below {policy['min_pass_rate']}")
@@ -179,6 +191,8 @@ def evaluate(run: dict[str, Any], policy: dict[str, Any], agreement: dict[str, A
         if cluster_ci is not None:
             lower_detail = (f"Wilson [{ci[0]}, {ci[1]}], by clip [{cluster_ci[0]}, {cluster_ci[1]}], "
                             f"lower {lower}, bar {policy['min_pass_rate']}")
+        elif cluster_note is not None:
+            lower_detail = f"{low}, {cluster_note}, bar {policy['min_pass_rate']}"
         checks.append(_check(f"Wilson lower bound {cond}", "FAIL" if weak else "PASS",
                              lower_detail,
                              fix if weak and cond not in no_go else None))

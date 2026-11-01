@@ -110,9 +110,31 @@ def test_repeated_groups_are_deterministic_and_wider_than_wilson():
     assert first[1] - first[0] > wilson[1] - wilson[0] + 0.10
 
 
+def test_all_pass_groups_have_zero_width_and_are_not_used_by_gate():
+    groups = {f"clip-{i}": [True, True] for i in range(5)}
+    assert cluster_interval(groups) == [1.0, 1.0]
+    steps = [_step(f"MOT20-03-{i}-{frame}", "small_object", "PASS")
+             for i in range(5) for frame in (1, 2)]
+    report = rg.evaluate(_run_with_dataset(steps, "mot20-long"), rg.load_policy(None), None)
+    assert "cluster_ci95" not in report["conditions"]["small_object"]
+    assert "by clip: n/a (too few clips to estimate)" in next(
+        c["detail"] for c in report["checks"] if c["name"] == "pass rate small_object")
+
+
+def test_fewer_than_five_groups_are_not_used_by_gate():
+    groups = {f"clip-{i}": [i % 2 == 0, i % 2 == 0] for i in range(4)}
+    assert cluster_interval(groups) is not None
+    steps = [_step(f"MOT20-03-{i}-{frame}", "small_object", "PASS" if i % 2 == 0 else "FAIL_LOCALIZATION")
+             for i in range(4) for frame in (1, 2)]
+    report = rg.evaluate(_run_with_dataset(steps, "mot20-long"), rg.load_policy(None), None)
+    check = next(c for c in report["checks"] if c["name"] == "Wilson lower bound small_object")
+    assert "by clip: n/a (too few clips to estimate)" in check["detail"]
+
+
 def test_gate_uses_the_lower_cluster_bound():
-    steps = [_step(f"MOT20-03-1-{frame}", "small_object", "PASS") for frame in range(8)]
-    steps += [_step(f"MOT20-03-2-{frame}", "small_object", "FAIL_LOCALIZATION") for frame in range(8)]
+    steps = [_step(f"MOT20-03-{target}-{frame}", "small_object",
+                   "PASS" if target < 5 else "FAIL_LOCALIZATION")
+             for target in range(1, 6) for frame in range(8)]
     report = rg.evaluate(_run_with_dataset(steps, "mot20-long"), rg.load_policy(None), None)
     condition = report["conditions"]["small_object"]
     assert condition["cluster_ci95"] is not None
