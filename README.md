@@ -33,7 +33,7 @@ All three results are real SAM 3.1 answers scored against human labels. Details 
   of their scored frames, the median person on 82.5 percent. Most failures were a box returned with weak overlap,
   not a missing target. The first scoring (run `8c351fcde7154e21`) wrongly showed 0 of 16 because of a size
   mismatch bug: the service shrank the clip and returned boxes at that smaller size. We found it, fixed it and
-  re-scored the saved raw text for free. One paid call, at most 0.48 US dollars for the whole test.
+  re-scored the saved raw text for free. One paid call, about 0.48 US dollars for the whole test.
 
 The saved COCO and DAVIS runs used a scripted test order, not an agent choosing the tests. The Muse Spark agent
 planner is implemented, but it did not produce these results.
