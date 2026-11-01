@@ -4,7 +4,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect x=%278%27 y=%278%27 width=%2716%27 height=%2716%27 fill=%27%23c8281c%27 transform=%27rotate(45 16 16)%27/%3E%3C/svg%3E">
 <meta name="description" content="A test harness and conservative release gate that tells a QA engineer whether a vision model is ready to ship, why, and what to fix.">
 <link rel="stylesheet" href="/site.css">
-</head><body>
+</head><body class="pending-home">
 <a class="skip" href="#main">Skip to content</a>
 <nav class="top" aria-label="Main"><div class="wrap"><b><i></i>BLINDSPOT CI</b>
  <a href="/" aria-current="page">Home</a><a href="/app">Example result</a><a href="/guide">How it works</a></div></nav>
@@ -77,7 +77,7 @@ async function main(){
   for(const r of rows.filter(x=>x.id!==coco.id)){
     const g=await api(`/api/runs/${r.id}/release-gate`);
     more.append(h('div',{class:'row2'},h('b',{},r.title+': '+LABEL[g.decision][0]),h('p',{style:'margin:4px 0 8px'},`${r.passed} of ${r.scored} tests passed. ${sentence(g)}`),h('a',{href:`/app?run=${r.id}`},'See this result')))}}
-main().catch(e=>$('card').replaceChildren(h('p',{class:'vline'},'The saved example could not be loaded ('+e.message+'). Open the example result page to try again.'),h('a',{class:'btn',href:'/app'},'See the full result')));
+main().catch(e=>$('card').replaceChildren(h('p',{class:'vline'},'The saved example could not be loaded ('+e.message+'). Open the example result page to try again.'),h('a',{class:'btn',href:'/app'},'See the full result'))).finally(()=>document.body.classList.remove('pending-home'));
 
 </script>
 </body></html>

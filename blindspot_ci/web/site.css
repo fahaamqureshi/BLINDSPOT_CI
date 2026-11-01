@@ -101,6 +101,7 @@ dt{font-weight:700;margin-top:12px}dd{margin:2px 0 0;color:var(--mute)}
 h1.h1s{font-size:clamp(24px,3.6vw,34px)}
 .vb{border:2px solid var(--ink);border-left-width:10px;background:var(--panel);padding:18px 20px;margin:0 0 8px;font-family:var(--ui)}
 body.pending main>section,body.pending footer{display:none}
+body.pending-home main>section~section,body.pending-home footer{display:none}
 .vb.NO_GO{border-left-color:var(--bad)}.vb.NEEDS_REVIEW{border-left-color:var(--warn)}.vb.GO_CANDIDATE{border-left-color:var(--ok)}.vb.DEMO_ONLY{border-left-color:var(--mute)}
 .vb .vlabel{font:800 clamp(28px,5vw,40px)/1.1 var(--display);margin:0 0 6px;max-width:none}
 .vb .vcode{font:600 13px var(--ui);color:var(--mute);letter-spacing:.04em;margin-left:8px;white-space:nowrap}
