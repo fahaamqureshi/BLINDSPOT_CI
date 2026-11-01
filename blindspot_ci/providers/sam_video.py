@@ -142,11 +142,18 @@ def _parse_record(chunk: str) -> dict[str, Any] | None:
         fields = dict(kv.split("=", 1) for kv in m.group(2).split(";"))
         x1, y1, x2, y2 = (int(fields[k]) for k in ("x1", "y1", "x2", "y2"))
         conf = float(fields["c"]) if "c" in fields else None
+        frame_size = ([int(fields["w"]), int(fields["h"])]
+                      if "w" in fields and "h" in fields else None)
     except (KeyError, ValueError):
         return None
     if x1 > x2 or y1 > y2:
         return None
-    return {"object_id": int(m.group(1)), "box_xyxy_pixels": [x1, y1, x2, y2], "confidence": conf}
+    if frame_size is not None and (frame_size[0] < 1 or frame_size[1] < 1):
+        return None
+    record = {"object_id": int(m.group(1)), "box_xyxy_pixels": [x1, y1, x2, y2], "confidence": conf}
+    if frame_size is not None:
+        record["frame_size"] = frame_size
+    return record
 
 
 def _parse_line(line: str, out: VideoParse, seen: set[int]) -> None:

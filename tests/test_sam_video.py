@@ -45,8 +45,10 @@ def test_two_frames_two_objects():
     result = parse_video_text(F0 + "\n" + F1 + "\n")
     assert [f.frame_index for f in result.frames] == [0, 1]
     assert result.frames[0].objects == [
-        {"object_id": 1, "box_xyxy_pixels": [211, 228, 270, 254], "confidence": 0.96},
-        {"object_id": 2, "box_xyxy_pixels": [155, 228, 202, 254], "confidence": 0.5}]
+        {"object_id": 1, "box_xyxy_pixels": [211, 228, 270, 254], "confidence": 0.96,
+         "frame_size": [320, 334]},
+        {"object_id": 2, "box_xyxy_pixels": [155, 228, 202, 254], "confidence": 0.5,
+         "frame_size": [320, 334]}]
     assert len(result.frames[1].objects) == 1 and result.malformed == 0
 
 

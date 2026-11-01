@@ -64,6 +64,14 @@ overstate certainty. Dark is relative to each sequence and means little when its
 narrow. Use `fixtures/policies/long-video.json` with `release-gate --policy`; it uses the MOT20
 conditions and leaves the default numeric thresholds unchanged.
 
+## Service returns smaller boxes
+
+The service may decode MOT20-03 at 586 by 440 even though the clip is 1173 by 880. Each returned box
+reports its own width and height. Scoring scales each x coordinate by clip width divided by returned
+width and each y coordinate by clip height divided by returned height before IoU. Raw streamed text
+keeps the service numbers unchanged. A real stall may deliver no lines at all, so the 300 second
+httpx read timeout still applies; the line-based stall guard handles delayed keepalive traffic.
+
 MOT20 human boxes cover the whole person including hidden parts, while SAM boxes cover what it sees.
 Low scores on frames tagged occluded may reflect that labelling convention and not a model loss.
 MOT20 is not a fixed-camera dataset.

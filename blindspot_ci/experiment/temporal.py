@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import statistics
+import time
 import uuid
 from collections import Counter
 from collections.abc import Callable
@@ -42,6 +43,8 @@ CONDITION_PRIORITY = ("occluded", "truncated", "dark", "small_object", "normal")
 DATASET_ID = "mot20-long"
 DATASET_TYPE = "HUMAN_LABELED_VIDEO"
 MAX_RAW_TEXT_BYTES = 3000 * 1024 * 1024
+STREAM_IDLE_TIMEOUT_SECONDS = 180.0
+STREAM_TOTAL_TIMEOUT_SECONDS = 25 * 60
 
 
 class VideoRequestRefused(MetaApiError):
@@ -166,6 +169,20 @@ def _reserve_sequence_cost(guard: BudgetGuard, frames: int) -> float:
     return cost
 
 
+def _monotonic() -> float:
+    return time.monotonic()
+
+
+def _is_output_text_delta(line: str) -> bool:
+    if not line.startswith("data:"):
+        return False
+    try:
+        event = json.loads(line[5:].strip())
+    except json.JSONDecodeError:
+        return False
+    return isinstance(event, dict) and event.get("type") == "response.output_text.delta"
+
+
 def _direct_video_call(adapter: MetaSam31VideoAdapter, request: Any, frames: int,
                        budget: BudgetGuard, raw_path: Path) -> VideoResult:
     """Make one request while streaming raw SSE text to disk and parsing it incrementally."""
@@ -175,10 +192,13 @@ def _direct_video_call(adapter: MetaSam31VideoAdapter, request: Any, frames: int
     raw_path.parent.mkdir(parents=True, exist_ok=True)
     stream_error: Exception | None = None
     cap_hit = False
+    stall_hit = False
     raw_bytes = 0
+    stream_started_at: float | None = None
+    last_output_at: float | None = None
 
     def lines(response):
-        nonlocal stream_error, cap_hit, raw_bytes
+        nonlocal stream_error, cap_hit, stall_hit, raw_bytes, last_output_at
         try:
             for line in response.iter_lines():
                 text = line.decode("utf-8", errors="replace") if isinstance(line, bytes) else str(line)
@@ -194,6 +214,13 @@ def _direct_video_call(adapter: MetaSam31VideoAdapter, request: Any, frames: int
                 raw_file.write(encoded)
                 raw_file.flush()
                 raw_bytes += len(encoded)
+                now = _monotonic()
+                if _is_output_text_delta(text):
+                    last_output_at = now
+                if ((stream_started_at is not None and now - stream_started_at > STREAM_TOTAL_TIMEOUT_SECONDS) or
+                        (last_output_at is not None and now - last_output_at > STREAM_IDLE_TIMEOUT_SECONDS)):
+                    stall_hit = True
+                    return
                 yield text
         except Exception as exc:  # noqa: BLE001
             stream_error = exc
@@ -214,6 +241,8 @@ def _direct_video_call(adapter: MetaSam31VideoAdapter, request: Any, frames: int
                         raise VideoRequestRefused(
                             f"Meta API video request failed (not retried): {adapter._describe(exc)}",
                             reserved) from exc
+                stream_started_at = _monotonic()
+                last_output_at = stream_started_at
                 parsed = parse_video_stream(lines(response))
     except httpx.HTTPError as exc:
         if parsed is None:
@@ -223,7 +252,7 @@ def _direct_video_call(adapter: MetaSam31VideoAdapter, request: Any, frames: int
         stream_error = stream_error or exc
     if parsed is None:
         parsed = parse_video_stream(())
-    if stream_error or cap_hit:
+    if stream_error or cap_hit or stall_hit:
         parsed.truncated = True
         parsed.completed = False
     if parsed.error:
@@ -268,6 +297,39 @@ def _box(value: Any) -> tuple[int, int, int, int]:
     return tuple(_rounded_int(item) for item in value)
 
 
+def _scale_model_box(obj: dict[str, Any], request_frame_size: tuple[int, int] | None) -> list[int]:
+    box = _box(obj["box_xyxy_pixels"])
+    reported = obj.get("frame_size")
+    if request_frame_size is None or not isinstance(reported, (list, tuple)) or len(reported) != 2:
+        return list(box)
+    source_width, source_height = int(reported[0]), int(reported[1])
+    target_width, target_height = request_frame_size
+    if source_width < 1 or source_height < 1:
+        return list(box)
+    return [round(box[0] * target_width / source_width), round(box[1] * target_height / source_height),
+            round(box[2] * target_width / source_width), round(box[3] * target_height / source_height)]
+
+
+def _reported_frame_sizes(parsed: Any) -> list[list[int]]:
+    sizes = set()
+    for frame in getattr(parsed, "frames", []):
+        for obj in frame.objects:
+            size = obj.get("frame_size")
+            if isinstance(size, (list, tuple)) and len(size) == 2:
+                sizes.add((int(size[0]), int(size[1])))
+    return [list(size) for size in sorted(sizes)]
+
+
+def _scale_factors(output_sizes: list[list[int]], request_frame_size: tuple[int, int]) -> tuple[Any, Any]:
+    factors = [(round(request_frame_size[0] / width, 6), round(request_frame_size[1] / height, 6))
+               for width, height in output_sizes]
+    if not factors:
+        return None, None
+    if len(factors) == 1:
+        return factors[0]
+    return [factor[0] for factor in factors], [factor[1] for factor in factors]
+
+
 def _matching_object(frame: Any, label: str, id_to_label: dict[int, str]) -> dict[str, Any] | None:
     for obj in frame.objects:
         object_id = obj.get("object_id")
@@ -277,7 +339,8 @@ def _matching_object(frame: Any, label: str, id_to_label: dict[int, str]) -> dic
 
 
 def _score_target(target: dict[str, Any], parsed: Any, id_to_label: dict[int, str],
-                  min_iou: float, failed: str | None = None) -> tuple[dict[str, Any], list[CaseOutcome]]:
+                  min_iou: float, failed: str | None = None,
+                  request_frame_size: tuple[int, int] | None = None) -> tuple[dict[str, Any], list[CaseOutcome]]:
     first_frames = {}
     duplicate_count = 0
     for frame in parsed.frames:
@@ -310,7 +373,7 @@ def _score_target(target: dict[str, Any], parsed: Any, id_to_label: dict[int, st
                 status, iou, reason, model_box = FALSE_NEGATIVE, 0.0, \
                     "The target was absent from the returned stream for this labeled frame.", None
             else:
-                model_box = list(found["box_xyxy_pixels"])
+                model_box = _scale_model_box(found, request_frame_size)
                 iou = round(box_iou(_box(model_box), _box(labeled["box"])), 4)
                 if iou >= min_iou:
                     status, reason = PASS, f"Box overlap {iou:.2f} meets the {min_iou:.2f} threshold."
@@ -384,6 +447,8 @@ def run_long_video(manifest: dict[str, Any], names: list[str], budget_usd: float
         raw_path = raw_dir / f"{run_id}-{name}.txt"
         sequence_result = {"name": name, "fps": int(sequence["fps"]),
                            "frame_count": int(sequence["frame_count"]),
+                           "request_frame_size": [int(sequence["frame_size"][0]), int(sequence["frame_size"][1])],
+                           "output_frame_size": [], "scale_x": None, "scale_y": None,
                            "luminance_samples": sequence.get("luminance_samples", []),
                            "seed_boxes_clamped": clamped_count, "targets": []}
         cost_before = guard.cost_usd
@@ -398,8 +463,14 @@ def run_long_video(manifest: dict[str, Any], names: list[str], budget_usd: float
                                 if result.billed_frames is not None else result.reserved_usd)
             if result.parse.error:
                 raise MetaApiError(result.parse.error)
+            request_frame_size = (int(sequence["frame_size"][0]), int(sequence["frame_size"][1]))
+            output_sizes = _reported_frame_sizes(result.parse)
+            sequence_result["output_frame_size"] = output_sizes
+            sequence_result["scale_x"], sequence_result["scale_y"] = _scale_factors(
+                output_sizes, request_frame_size)
             for target in sequence["targets"]:
-                scored_target, _ = _score_target(target, result.parse, result.id_to_label, min_iou)
+                scored_target, _ = _score_target(target, result.parse, result.id_to_label, min_iou,
+                                                  request_frame_size=request_frame_size)
                 scored_target["condition_counts"] = dict(Counter(
                     tag for row in scored_target["frames"] for tag in row["tags"]))
                 sequence_result["targets"].append(scored_target)
@@ -539,6 +610,12 @@ def render_temporal_report(runs_dir: Path, run_id: str) -> str:
             f"  Retention by condition: {condition_text}.",
             f"  Absolute luminance range: {lum}. Dark is relative to each sequence and means little where the range is narrow.",
         ])
+        request_size = sequence.get("request_frame_size")
+        for output_size in sequence.get("output_frame_size", []):
+            if request_size and output_size != request_size:
+                sequence_lines.append(
+                    f"  The service returned boxes at {output_size[0]} by {output_size[1]}; they were scaled "
+                    f"to the clip size {request_size[0]} by {request_size[1]} before scoring.")
         if sequence.get("seed_boxes_clamped", 0) > 0:
             sequence_lines.append(f"  Seed boxes clamped inside the frame: {sequence['seed_boxes_clamped']}.")
         total_targets += len(sequence["targets"])

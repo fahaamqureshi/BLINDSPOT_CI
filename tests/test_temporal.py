@@ -26,6 +26,18 @@ class _CutStream(httpx.SyncByteStream):
         raise RuntimeError("connection cut")
 
 
+class _StallStream(httpx.SyncByteStream):
+    def __iter__(self):
+        yield b'data: {"type":"response.output_text.delta","delta":"<1f>1<|box;x1=0;y1=0;x2=10;y2=10|>\\n"}\n\n'
+        yield b"\n"
+
+
+class _TotalTimeoutStream(httpx.SyncByteStream):
+    def __iter__(self):
+        yield b'data: {"type":"response.output_text.delta","delta":"<1f>1<|box;x1=0;y1=0;x2=10;y2=10|>\\n"}\n\n'
+        yield b'data: {"type":"response.output_text.delta","delta":"<2f>1<|box;x1=0;y1=0;x2=10;y2=10|>\\n"}\n\n'
+
+
 def _sse(*events):
     return "".join(f"data: {json.dumps(event)}\n\n" for event in events)
 
@@ -87,6 +99,89 @@ def test_edge_seed_is_clamped_but_original_human_box_scores(tmp_path):
     assert sequence["targets"][0]["frames"][0]["human_box"] == [0, 0, 10, 100]
     assert sequence["targets"][0]["frames"][0]["status"] == "PASS"
     assert "Seed boxes clamped inside the frame: 1" in render_temporal_report(tmp_path / "runs", report["id"])
+
+
+def test_model_boxes_scale_from_reported_frame_size(tmp_path):
+    manifest = _manifest()
+    sequence = manifest["sequences"][0]
+    sequence["frame_size"] = [1173, 880]
+    sequence["targets"][0]["seed_box"] = [1127, 832, 1171, 878]
+    sequence["targets"][0]["frames"][0]["box"] = [1127, 832, 1171, 878]
+    body = _sse(_delta("<1f>1<|box;x1=563;y1=416;x2=585;y2=439;w=586;h=440|>\n"), _complete())
+    report = run_long_video(manifest, ["MOT20-02"], 1.0,
+                            runs_dir=tmp_path / "runs", raw_dir=tmp_path / "raw", adapter=_adapter(body))
+    data = json.loads((tmp_path / "runs" / f"{report['id']}.temporal.json").read_text())
+    sequence_result = data["sequences"][0]
+    row = sequence_result["targets"][0]["frames"][0]
+    assert row["status"] == "PASS"
+    assert row["model_box"] == [1127, 832, 1171, 878]
+    assert sequence_result["output_frame_size"] == [[586, 440]]
+    assert sequence_result["scale_x"] == pytest.approx(1173 / 586, abs=1e-6)
+    assert sequence_result["scale_y"] == pytest.approx(2.0)
+    assert "The service returned boxes at 586 by 440" in render_temporal_report(tmp_path / "runs", report["id"])
+
+
+def test_model_box_without_frame_size_uses_request_pixels(tmp_path):
+    body = _sse(_delta("<1f>1<|box;x1=0;y1=0;x2=10;y2=10|>\n"), _complete())
+    report = run_long_video(_manifest(), ["MOT20-02"], 1.0,
+                            runs_dir=tmp_path / "runs", raw_dir=tmp_path / "raw", adapter=_adapter(body))
+    data = json.loads((tmp_path / "runs" / f"{report['id']}.temporal.json").read_text())
+    sequence_result = data["sequences"][0]
+    assert sequence_result["targets"][0]["frames"][0]["model_box"] == [0, 0, 10, 10]
+    assert sequence_result["output_frame_size"] == []
+
+
+def test_distinct_reported_frame_sizes_are_recorded(tmp_path):
+    manifest = _manifest()
+    sequence = manifest["sequences"][0]
+    sequence["frame_size"] = [1173, 880]
+    sequence["targets"][0]["seed_box"] = [1127, 832, 1171, 878]
+    sequence["targets"][0]["frames"][0]["box"] = [1127, 832, 1171, 878]
+    body = _sse(
+        _delta("<1f>1<|box;x1=563;y1=416;x2=585;y2=439;w=586;h=440|>\n"),
+        _delta("<2f>1<|box;x1=1127;y1=832;x2=1171;y2=878;w=1173;h=880|>\n"),
+        _complete())
+    report = run_long_video(manifest, ["MOT20-02"], 1.0,
+                            runs_dir=tmp_path / "runs", raw_dir=tmp_path / "raw", adapter=_adapter(body))
+    data = json.loads((tmp_path / "runs" / f"{report['id']}.temporal.json").read_text())
+    sequence_result = data["sequences"][0]
+    assert sequence_result["output_frame_size"] == [[586, 440], [1173, 880]]
+    assert sequence_result["scale_x"] == pytest.approx([1173 / 586, 1.0], abs=1e-6)
+    assert sequence_result["scale_y"] == pytest.approx([2.0, 1.0], abs=1e-6)
+
+
+def test_stall_guard_marks_partial_stream_truncated(monkeypatch, tmp_path):
+    clock = iter([0.0, 0.0, 181.0])
+    monkeypatch.setattr(temporal, "_monotonic", lambda: next(clock))
+
+    def handler(request):
+        return httpx.Response(200, stream=_StallStream())
+
+    report = run_long_video(_manifest(), ["MOT20-02"], 1.0,
+                            runs_dir=tmp_path / "runs", raw_dir=tmp_path / "raw",
+                            adapter=MetaSam31VideoAdapter(KEY, transport=httpx.MockTransport(handler)))
+    data = json.loads((tmp_path / "runs" / f"{report['id']}.temporal.json").read_text())
+    rows = data["sequences"][0]["targets"][0]["frames"]
+    assert rows[0]["status"] == "PASS"
+    assert rows[1]["status"] == "ERROR"
+    assert (tmp_path / "raw" / f"{report['id']}-MOT20-02.txt").read_text().startswith("data:")
+
+
+def test_total_stream_guard_marks_partial_stream_truncated(monkeypatch, tmp_path):
+    clock = iter([0.0, 0.0, 1501.0])
+    monkeypatch.setattr(temporal, "_monotonic", lambda: next(clock))
+    monkeypatch.setattr(temporal, "STREAM_IDLE_TIMEOUT_SECONDS", 10_000.0)
+
+    def handler(request):
+        return httpx.Response(200, stream=_TotalTimeoutStream())
+
+    report = run_long_video(_manifest(), ["MOT20-02"], 1.0,
+                            runs_dir=tmp_path / "runs", raw_dir=tmp_path / "raw",
+                            adapter=MetaSam31VideoAdapter(KEY, transport=httpx.MockTransport(handler)))
+    data = json.loads((tmp_path / "runs" / f"{report['id']}.temporal.json").read_text())
+    rows = data["sequences"][0]["targets"][0]["frames"]
+    assert rows[0]["status"] == "PASS"
+    assert rows[1]["status"] == "ERROR"
 
 
 def test_long_video_scores_raw_output_and_temporal_metrics(tmp_path):
