@@ -4,7 +4,7 @@ import dataclasses
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, PlainTextResponse
+from fastapi.responses import FileResponse, PlainTextResponse, RedirectResponse
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
@@ -80,8 +80,8 @@ def guide_page() -> FileResponse:
 
 
 @app.get("/demo")
-def demo_page() -> FileResponse:
-    return FileResponse(WEB / "demo.html")
+def demo_page() -> RedirectResponse:
+    return RedirectResponse("/", status_code=307)
 
 
 @app.get("/site.css")
@@ -90,8 +90,8 @@ def site_css() -> FileResponse:
 
 
 @app.get("/probes")
-def probes_page() -> FileResponse:
-    return FileResponse(WEB / "probes.html")
+def probes_page() -> RedirectResponse:
+    return RedirectResponse("/", status_code=307)
 
 
 @app.get("/health")

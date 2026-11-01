@@ -41,5 +41,6 @@ def test_live_run_is_refused_without_switch(client, monkeypatch):
     assert client.post("/api/experiment", json={"max_steps": 1}).status_code == 403
 
 
-def test_probe_page_still_available(client):
-    assert client.get("/probes").status_code == 200
+def test_probe_page_redirects_home(client):
+    response = client.get("/probes", follow_redirects=False)
+    assert response.status_code == 307 and response.headers["location"] == "/"

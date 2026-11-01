@@ -63,8 +63,8 @@ python -m pytest
 python -m blindspot_ci.cli serve
 ```
 
-Open http://127.0.0.1:8000. The overview has an interactive IoU playground, `/demo` is a free guided run,
-`/guide` covers setup, and `/app` is the full tool. The offline provider is a deterministic mock and the page
+Open http://127.0.0.1:8000. The home page shows a saved real result, `/guide` explains how it works and has an interactive
+overlap playground, and `/app` is the full result page and tool. The offline provider is a deterministic mock and the page
 banner says so.
 
 ## How it works

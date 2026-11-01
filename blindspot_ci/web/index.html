@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Result - BLINDSPOT CI</title>
+<meta name="description" content="The saved result of a BLINDSPOT CI check: the release decision, why, and what to fix.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect x=%278%27 y=%278%27 width=%2716%27 height=%2716%27 fill=%27%23c8281c%27 transform=%27rotate(45 16 16)%27/%3E%3C/svg%3E">
 <link rel="stylesheet" href="/site.css">
 </head><body>
@@ -51,16 +52,16 @@
   <button id="run">Run check</button><p id="note" class="small" role="status"></p>
 
   <div class="box"><h3>Muse Image variants</h3>
-   <p class="small">Edits your labeled photos into harder conditions with the Muse Image model. Boxes are inherited and the photos are marked GENERATED. About $0.01 per image, live mode only.</p>
+   <p class="small">Edits your labeled photos into harder kinds of photo with the Muse Image model. Boxes are inherited and the photos are marked GENERATED. About $0.01 per image, live mode only.</p>
    <div class="checks"><label><input type="checkbox" value="low_light" checked> low light</label><label><input type="checkbox" value="glare" checked> glare</label><label><input type="checkbox" value="motion_blur"> motion blur</label></div>
    <button id="stress" class="alt">Generate variants</button><p id="stressnote" class="small" role="status"></p></div>
 
   <div class="box"><h3>Measured corruptions</h3>
-   <p class="small">Low light, noise and blur at two strengths, like the ImageNet-C test set. Free. No pixel moves, so the person's box stays exact.</p>
+   <p class="small">Low light, noise and blur at two strengths, like the ImageNet-C test set (called corruptions). Free. No pixel moves, so the person's box stays exact.</p>
    <button id="corrupt" class="alt">Add measured corruptions</button><p id="corruptnote" class="small" role="status"></p></div>
 
   <div class="box"><h3>Models in this app</h3><div class="models" id="models"></div></div>
-  <div class="box"><h3>Test inventory</h3><div id="cases" class="small">Loading</div></div>
+  <div class="box"><h3>Tests in this set</h3><div id="cases" class="small">Loading</div></div>
 
   <div class="box"><h3>Reviewer notes</h3>
    <p class="small">Add a note about one photo of the loaded result. Notes are saved with a run that this server stored, not with the built-in examples.</p>
@@ -83,6 +84,11 @@ let info=null,ds='synthetic',cur=null;const used=new Set();
 function h(tag,attrs,...kids){const e=document.createElement(tag);for(const[k,v]of Object.entries(attrs||{}))e.setAttribute(k,v);for(const kid of kids)e.append(kid);return e}
 function s(tag,attrs,text){const e=document.createElementNS(NS,tag);for(const[k,v]of Object.entries(attrs||{}))e.setAttribute(k,v);if(text)e.textContent=text;return e}
 async function api(path,opts){const r=await fetch(path,opts);let d={};try{d=await r.json()}catch(e){}if(!r.ok)throw Error(typeof d.detail==='string'?d.detail:d.detail?JSON.stringify(d.detail):r.status);return d}
+const TECH={FAIL_FALSE_NEGATIVE:'false negative',FAIL_FALSE_POSITIVE:'false positive',FAIL_LOCALIZATION:'localization failure'};
+const abbr=(t,d)=>h('abbr',{title:d},t);
+const IOU_TIP='IoU: the area two boxes share divided by the area they cover together. 1.00 is a perfect match.';
+const WILSON_TIP='Wilson interval: a 95% range for the true pass rate, given how few photos were tested.';
+const statusText=o=>(STATUS[o]||o)+(TECH[o]?` (${TECH[o]})`:'');
 const pct=x=>Math.round(x*100)+'%';
 
 /* plain words */
@@ -96,7 +102,7 @@ const kind=k=>KINDS[k]||k.replaceAll('_',' ');
 const noun=k=>NOUN[k]||kind(k);
 const TITLES={'coco-val2017':'Everyday photos (COCO)','davis-2017-frames':'Video frames (DAVIS)'};
 const PHOTO_SET={'coco-val2017':'coco','davis-2017-frames':'video'};
-const STATUS={PASS:'Passed',FAIL_FALSE_NEGATIVE:'Missed',FAIL_FALSE_POSITIVE:'False alarm',FAIL_LOCALIZATION:'Box in the wrong place',UNKNOWN:'Not scored',ERROR:'Error'};
+const STATUS={PASS:'Passed',FAIL_FALSE_NEGATIVE:'Missed',FAIL_FALSE_POSITIVE:'False alarm',FAIL_LOCALIZATION:'Box too far off',UNKNOWN:'Not scored',ERROR:'Error'};
 const barText=r=>{const t=r*10;return Math.abs(t-Math.round(t))<1e-9?`${Math.round(t)} out of 10`:`${Math.round(r*100)} out of 100`};
 const times=(c,k)=>k==='absent'?`correctly found nothing ${c.passed} times out of ${c.scored}`:`found the object ${c.passed} times out of ${c.scored}`;
 function sourceLine(mode){
@@ -198,20 +204,20 @@ function renderEvidence(run){
 /* collapsed sections */
 function table(head,rows,cap){return h('table',{},h('caption',{class:'vis'},cap),h('thead',{},h('tr',{},...head.map(x=>h('th',{scope:'col'},x)))),h('tbody',{},...rows))}
 function renderAll(run){
-  const rows=run.steps.map((st,i)=>{const c=st.case,o=st.outcome;return h('tr',{},h('td',{},String(i+1)),h('th',{scope:'row'},c.title),h('td',{},kind(c.condition)),h('td',{},STATUS[o.status]||o.status),h('td',{},o.iou===null||o.iou===undefined?'n/a':String(o.iou)))});
-  $('all-body').replaceChildren(h('p',{class:'small'},`Every test in this run, in the order it ran. Overlap is the IoU score.`),h('div',{class:'tablewrap',tabindex:'0',role:'region','aria-label':'All tests'},table(['#','Photo','Kind of photo','Result','Overlap'],rows,'Every test in the run')))}
+  const rows=run.steps.map((st,i)=>{const c=st.case,o=st.outcome;return h('tr',{},h('td',{},String(i+1)),h('th',{scope:'row'},c.title),h('td',{},kind(c.condition)),h('td',{},statusText(o.status)),h('td',{},o.iou===null||o.iou===undefined?'n/a':String(o.iou)))});
+  $('all-body').replaceChildren(h('p',{class:'small'},'Every test in this run, in the order it ran. Overlap is the ',abbr('IoU',IOU_TIP),' score.'),h('div',{class:'tablewrap',tabindex:'0',role:'region','aria-label':'All tests'},table(['#','Photo','Kind of photo','Result','Overlap'],rows,'Every test in the run')))}
 function renderDetails(run,gate){
   const t=gate.traceability||{},sm=run.summary,p=gate.policy;
   const kv=[['Run id',run.id],['Source label',run.mode],['Test order',run.planner],['Model',run.model],['Photos',`${run.dataset.id} (${run.dataset.type})`],['How the labels were made',run.dataset.annotation_status],
-   ['Overlap needed to pass (IoU)',String(sm.min_iou)],['Calls and cost',`${run.calls} calls, about $${run.estimated_cost_usd}`],['Started',run.started_at],['Run file sha256',t.run_sha256||'n/a'],['Distinct photo hashes',String(t.distinct_image_hashes)],
-   ['Gate policy',`version ${p.policy_version}, bar ${p.min_pass_rate}, ${p.min_cases_per_condition} photos per kind, ${p.min_judged_cases} photos before a miss counts`]];
+   ['Overlap needed to pass',String(sm.min_iou)],['Calls and cost',`${run.calls} calls, about $${run.estimated_cost_usd}`],['Started',run.started_at],['Run file sha256',t.run_sha256||'n/a'],['Distinct photo hashes',String(t.distinct_image_hashes)],
+   ['Release gate rules',`version ${p.policy_version}, bar ${p.min_pass_rate}, ${p.min_cases_per_condition} photos per kind, ${p.min_judged_cases} photos before a miss counts`]];
   const rng=Object.entries(sm.by_condition).map(([k,c])=>h('tr',{},h('th',{scope:'row'},kind(k)),h('td',{},c.scored?`${c.passed} of ${c.scored}`:'0 of 0'),h('td',{},c.scored?`${pct(c.pass_ci95[0])} to ${pct(c.pass_ci95[1])}`:'n/a'),h('td',{},c.scored<p.min_cases_per_condition?`Fewer than ${p.min_cases_per_condition} photos`:'Enough photos')));
   const chk=gate.checks.map(c=>h('tr',{},h('td',{},{PASS:'Passed',FAIL:'Failed',NA:'Not applicable'}[c.status]||c.status),h('th',{scope:'row'},c.name),h('td',{},c.detail)));
   $('details-body').replaceChildren(
    h('dl',{class:'kv'},...kv.flatMap(([a,b])=>[h('dt',{},a),h('dd',{},String(b))])),
    h('h3',{},'Ranges'),h('details',{class:'what'},h('summary',{},'What is a Wilson interval?'),h('p',{},'It is a 95% range for the true pass rate, given how few photos were tested. A small group of photos gives a wide range on purpose.')),
-   h('div',{class:'tablewrap',tabindex:'0',role:'region','aria-label':'Ranges by kind of photo'},table(['Kind of photo','Found','95% range (Wilson interval)','Photos'],rng,'Ranges by kind of photo')),
-   h('h3',{},'Every gate check'),h('div',{class:'tablewrap',tabindex:'0',role:'region','aria-label':'Gate checks'},table(['Status','Check','Detail'],chk,'Release gate checks')))}
+   h('div',{class:'tablewrap',tabindex:'0',role:'region','aria-label':'Ranges by kind of photo'},table(['Kind of photo','Found',h('span',{},'95% range ',h('small',{},'(',abbr('Wilson interval',WILSON_TIP),')')),'Photos'],rng,'Ranges by kind of photo')),
+   h('h3',{},'Every release gate check'),h('div',{class:'tablewrap',tabindex:'0',role:'region','aria-label':'Gate checks'},table(['Status','Check','Detail'],chk,'Release gate checks')))}
 
 /* advanced tools */
 function drawModels(){$('models').replaceChildren(...info.models.map(m=>h('div',{},h('b',{},m.model),h('span',{},m.role+(used.has(m.id)?' (used this session)':'')))))}
@@ -269,7 +275,7 @@ async function setDataset(name){ds=name;info=await api('/api/info?dataset='+enco
 async function init(){
   try{info=await api('/api/info')}catch(e){info=await api('/api/info?dataset=synthetic')}
   ds=info.datasets.includes(info.default_dataset)?info.default_dataset:'synthetic';
-  $('servermode').textContent=`This server: ${info.mode==='MOCK_FIXTURE'?'mock mode (new checks only make practice data)':'live mode'}. Planner: ${info.planner}.`;
+  $('servermode').textContent=`This server: ${info.mode==='MOCK_FIXTURE'?'mock mode (new checks only make practice data)':'live mode'}. Test order: ${info.planner}.`;
   $('dataset').replaceChildren(...info.datasets.map(n=>h('option',n===ds?{value:n,selected:''}:{value:n},n)));
   runWarn();
   const q=new URLSearchParams(location.search);

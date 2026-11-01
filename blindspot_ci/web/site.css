@@ -175,3 +175,9 @@ details.sec h3{margin:18px 0 6px}
 footer p{margin:0 0 6px;max-width:none}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 @media(max-width:480px){nav.top .wrap{gap:0 16px}nav.top b{flex-basis:100%;margin:8px 0 0}}
+/* how it works page and glossary hooks */
+abbr[title]{text-decoration:underline dotted;text-underline-offset:3px;cursor:help}
+dt small{font-weight:400;color:var(--mute);margin-left:6px}
+.guide1 ul,.guide1 ol{max-width:62ch}
+.guide1 section{padding:30px 0}
+details.sec>summary:focus-visible{outline:3px solid var(--sam);outline-offset:2px}

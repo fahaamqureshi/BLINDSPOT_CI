@@ -37,31 +37,6 @@
  <p class="trust"><b>Not a safety approval. A person always decides.</b> The check covers the listed model, photos and dates only. A pass means the model met the bar on those photos.</p>
 </section>
 
-<section aria-labelledby="play-h">
- <h2 id="play-h">Try the overlap score</h2>
- <div class="hero" style="padding-top:0">
-  <div>
-   <p>The score for each test is the overlap of two boxes. Move the amber box over the teal one and watch the number change. A test passes when the overlap is at least 0.35, which is the scorer's default.</p>
-  </div>
-  <div class="play">
-   <svg id="board" viewBox="0 0 480 320" role="group" aria-label="Box overlap playground: an object, the model box and your label box">
-    <defs><pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="rgba(0,0,0,.12)" stroke-width="1"/></pattern></defs>
-    <rect width="480" height="320" fill="url(#grid)"/>
-    <rect x="210" y="96" width="120" height="132" fill="#6b7a88"/>
-    <circle cx="270" cy="124" r="12" fill="#e8ebee"/>
-    <rect x="228" y="156" width="84" height="8" fill="#e8ebee"/><rect x="228" y="176" width="64" height="8" fill="#e8ebee"/>
-    <rect id="sam" x="206" y="92" width="128" height="140" fill="none" stroke="var(--sam)" stroke-width="5"/>
-    <g id="human" tabindex="0" role="group" aria-label="Your label box. Arrow keys move it, shift and arrow keys resize it." style="cursor:move">
-     <rect id="hrect" x="150" y="70" width="120" height="120" fill="rgba(168,111,0,.12)" stroke="var(--human)" stroke-width="5" stroke-dasharray="14 8"/>
-     <circle id="hgrip" cx="270" cy="190" r="22" fill="transparent" style="cursor:nwse-resize"/><circle id="hdot" cx="270" cy="190" r="11" fill="var(--human)" pointer-events="none"/>
-    </g>
-   </svg>
-   <div class="readout" role="status"><output id="iou" aria-labelledby="iou-label">0.00</output><span id="iou-label">overlap (IoU)</span><span id="verdict" class="verdict fail">FAIL</span></div>
-   <div class="key"><span style="--c:var(--sam)">Model box</span><span style="--c:var(--human)">Your label (drag me)</span></div>
-   <p>Drag the amber box, or focus it and use the arrow keys. Hold shift to resize.</p>
-  </div>
- </div>
-</section>
 </main>
 
 <footer><div class="wrap"><p>BLINDSPOT CI is a bounded evaluation, not a safety approval. Results hold for the listed models, photos and dates only.</p></div></footer>
@@ -104,21 +79,5 @@ async function main(){
     more.append(h('div',{class:'row2'},h('b',{},r.title+': '+LABEL[g.decision][0]),h('p',{style:'margin:4px 0 8px'},`${r.passed} of ${r.scored} tests passed. ${sentence(g)}`),h('a',{href:`/app?run=${r.id}`},'See this result')))}}
 main().catch(e=>$('card').replaceChildren(h('p',{class:'vline'},'The saved example could not be loaded ('+e.message+'). Open the example result page to try again.'),h('a',{class:'btn',href:'/app'},'See the full result')));
 
-(()=>{const svg=document.getElementById('board'),hr=document.getElementById('hrect'),grip=document.getElementById('hgrip'),dot=document.getElementById('hdot'),g=document.getElementById('human');
-const SAM=[206,92,334,232],MIN=24;let b=[150,70,270,190];
-function iou(a,c){const w=Math.max(0,Math.min(a[2],c[2])-Math.max(a[0],c[0])),h=Math.max(0,Math.min(a[3],c[3])-Math.max(a[1],c[1])),i=w*h,u=(a[2]-a[0])*(a[3]-a[1])+(c[2]-c[0])*(c[3]-c[1])-i;return u?i/u:0}
-function draw(){hr.setAttribute('x',b[0]);hr.setAttribute('y',b[1]);hr.setAttribute('width',b[2]-b[0]);hr.setAttribute('height',b[3]-b[1]);grip.setAttribute('cx',b[2]);grip.setAttribute('cy',b[3]);dot.setAttribute('cx',b[2]);dot.setAttribute('cy',b[3]);
- const v=iou(b,SAM),ok=v>=0.35;document.getElementById('iou').textContent=v.toFixed(2);const t=document.getElementById('verdict');t.textContent=ok?'PASS':'FAIL';t.className='verdict '+(ok?'pass':'fail')}
-function pt(e){const p=svg.createSVGPoint();p.x=e.clientX;p.y=e.clientY;return p.matrixTransform(svg.getScreenCTM().inverse())}
-const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));let mode=null,start=null,orig=null;
-g.addEventListener('pointerdown',e=>{mode=e.target===grip?'size':'move';start=pt(e);orig=b.slice();g.setPointerCapture(e.pointerId);e.preventDefault()});
-g.addEventListener('pointermove',e=>{if(!mode)return;const p=pt(e),dx=p.x-start.x,dy=p.y-start.y;
- if(mode==='move'){const w=orig[2]-orig[0],h=orig[3]-orig[1],x=clamp(orig[0]+dx,0,480-w),y=clamp(orig[1]+dy,0,320-h);b=[x,y,x+w,y+h]}
- else b=[orig[0],orig[1],clamp(orig[2]+dx,orig[0]+MIN,480),clamp(orig[3]+dy,orig[1]+MIN,320)];draw()});
-g.addEventListener('pointerup',()=>{mode=null});g.addEventListener('pointercancel',()=>{mode=null});
-g.addEventListener('keydown',e=>{const s=e.shiftKey?'size':'move',d={ArrowLeft:[-8,0],ArrowRight:[8,0],ArrowUp:[0,-8],ArrowDown:[0,8]}[e.key];if(!d)return;e.preventDefault();
- if(s==='move'){const w=b[2]-b[0],h=b[3]-b[1],x=clamp(b[0]+d[0],0,480-w),y=clamp(b[1]+d[1],0,320-h);b=[x,y,x+w,y+h]}
- else b=[b[0],b[1],clamp(b[2]+d[0],b[0]+MIN,480),clamp(b[3]+d[1],b[1]+MIN,320)];draw()});
-draw()})();
 </script>
 </body></html>

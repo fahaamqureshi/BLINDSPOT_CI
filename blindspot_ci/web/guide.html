@@ -1,103 +1,98 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Guide - BLINDSPOT CI</title>
+<title>How it works - BLINDSPOT CI</title>
+<meta name="description" content="How BLINDSPOT CI tests a vision model on person-labeled photos, what the four decisions mean, and what is not tested.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect x=%278%27 y=%278%27 width=%2716%27 height=%2716%27 fill=%27%23c8281c%27 transform=%27rotate(45 16 16)%27/%3E%3C/svg%3E">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,700..900&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/site.css">
 </head><body>
 <a class="skip" href="#main">Skip to content</a>
-<nav class="top"><div class="wrap"><b><i></i>BLINDSPOT CI</b>
- <a href="/">Overview</a><a href="/demo">Demo</a><a href="/guide" aria-current="page">Guide</a><a href="/app">Run a test</a></div></nav>
+<nav class="top" aria-label="Main"><div class="wrap"><b><i></i>BLINDSPOT CI</b>
+ <a href="/">Home</a><a href="/app">Example result</a><a href="/guide" aria-current="page">How it works</a></div></nav>
 
-<div class="wrap guide">
-<nav class="toc" aria-label="On this page">
- <a href="#start">Start in five minutes</a><a href="#parts">What each part does</a><a href="#live">Run it live</a>
- <a href="#own-photos">Test your own photos</a><a href="#read">Read a result</a><a href="#gate">Release gate</a><a href="#video">Record the demo</a><a href="#limits">What it cannot tell you</a>
-</nav>
-<main id="main">
-<h1 style="font-size:clamp(36px,5vw,56px)">Guide</h1>
-<p class="lede">How to run BLINDSPOT CI, read what it says, and show it to someone else.</p>
+<main class="wrap guide1" id="main">
+<h1 class="h1s" style="padding-top:28px">How BLINDSPOT CI works</h1>
 
-<section id="start"><h2>Start in five minutes</h2>
-<p>You need Python 3.11 or newer. The first run uses scripted answers, so it needs no key and no network.</p>
-<pre tabindex="0"><code>py -3.11 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -e ".[dev]"
-Copy-Item .env.example .env
-python -m pytest
-python -m blindspot_ci.cli serve</code></pre>
-<p>Open <a href="http://127.0.0.1:8000">http://127.0.0.1:8000</a>. Use <a href="/demo">Demo</a> for a guided run and <a href="/app">Run a test</a> for the full tool. The banner always says which mode you are in.</p></section>
+<section aria-labelledby="problem-h"><h2 id="problem-h">The problem</h2>
+<p>A vision model can look great in a demo and still fail on dark, small or half hidden objects. BLINDSPOT CI tests a model on photos or video that a person labeled and tells you whether the evidence supports shipping it, why, and what to fix first.</p></section>
 
-<section id="parts"><h2>What each part does</h2>
+<section aria-labelledby="steps-h"><h2 id="steps-h">The four steps</h2>
+<ol class="fix">
+<li><b>Pick photos or video a person labeled.</b> A person drew a box around the object. A model never writes the labels.</li>
+<li><b>The model outlines the object.</b> The model under test draws its own box.</li>
+<li><b>Plain code scores it against the human labels.</b> Python checks how much the two boxes overlap. No model grades itself.</li>
+<li><b>The release gate decides.</b> A cautious rule reads the scores and gives one of four decisions.</li>
+</ol></section>
+
+<section aria-labelledby="dec-h"><h2 id="dec-h">What the four decisions mean</h2>
 <dl>
-<dt>Muse Spark 1.3, the agent</dt><dd>Picks the next test by function calling. It sees earlier results but never the labels.</dd>
-<dt>SAM 3.1, the model under test</dt><dd>Segments the photo from a word such as "fire hydrant" and returns boxes and masks.</dd>
-<dt>Python, the scorer</dt><dd>Compares the best box with the box a person drew. A test passes at IoU 0.35 or higher.</dd>
-<dt>Muse Image 1.0</dt><dd>Makes labeled dark, glare and blur variants. They carry a GENERATED label and are not photos.</dd>
-<dt>Muse Voice Transcribe 1.0</dt><dd>Turns a spoken reviewer note into text.</dd>
-<dt>Muse Wonder 1.0</dt><dd>Writes a plain-language audit of a finished run. It cannot change a score.</dd>
+<dt>Do not ship yet <small>(NO_GO)</small></dt><dd>A kind of photo that must work is below the bar.</dd>
+<dt>Not enough evidence yet <small>(NEEDS_REVIEW)</small></dt><dd>Nothing clearly fails, but the evidence is thin or unchecked.</dd>
+<dt>Passed every check <small>(GO_CANDIDATE)</small></dt><dd>Every check passed. A person still decides. This is not a safety approval.</dd>
+<dt>Practice data only <small>(DEMO_ONLY)</small></dt><dd>The answers came from a script or generated images, so they say nothing about the model.</dd>
 </dl></section>
 
-<section id="live"><h2>Run it live</h2>
-<ol>
-<li>Put your key in <code>.env</code> as <code>MODEL_API_KEY</code>. Never share or commit that file.</li>
-<li>Set <code>BLINDSPOT_PROVIDER=meta</code> and <code>LIVE_API_ENABLED=true</code>.</li>
-<li>Choose a dataset in the tool, or run it from the terminal:</li>
-</ol>
-<pre tabindex="0"><code>$env:BLINDSPOT_PROVIDER="meta"; $env:LIVE_API_ENABLED="true"; $env:BLINDSPOT_DATASET="open"
-python -m blindspot_ci.cli experiment --steps 8 --planner muse</code></pre>
-<p>A SAM call costs about a quarter of a cent. A full run of 24 photos costs a few cents. A session budget stops the run when the call limit is reached. Real photo sets are built by <code>scripts/fetch_open_data.py</code>, <code>scripts/fetch_open_data_hard.py</code> and <code>scripts/fetch_open_video.py</code>.</p></section>
-
-<section id="own-photos"><h2>Test your own photos</h2>
-<ol>
-<li>Put 20 to 40 photos of your tray and tag in one folder. Include dark, angled, partly covered and no-tag photos.</li>
-<li>Start the labeling tool and draw a box around the tag on each photo. Your name is stored on every label.</li>
-<li>Import the labels and run the tests.</li></ol>
-<pre tabindex="0"><code>python -m blindspot_ci.cli label --folder "C:\path\to\photos" --annotator "Your Name" --out my-labels.json
-python -m blindspot_ci.cli import-photos my-labels.json
-.\scripts\live_experiment.ps1 -Dataset real -Steps 24</code></pre>
-<p>Draw every box yourself. A box copied from SAM or Muse would be the model grading itself. If you can, ask a second person to check some labels and record their name.</p></section>
-
-<section id="read"><h2>Read a result</h2>
-<dl>
-<dt>PASS</dt><dd>The best box overlapped the label by at least the threshold. It is one example.</dd>
-<dt>FAIL_FALSE_NEGATIVE</dt><dd>The object was there and the model found nothing.</dd>
-<dt>FAIL_FALSE_POSITIVE</dt><dd>The object was not there and the model found something.</dd>
-<dt>FAIL_LOCALIZATION</dt><dd>The model found something, but not where the label is.</dd>
-<dt>UNKNOWN and ERROR</dt><dd>Not scored. They never count as a model miss.</dd>
-<dt>Mode label</dt><dd>MOCK_FIXTURE is scripted. LIVE_META is a real SAM call made for this run. CACHE_LIVE_META is a real answer saved earlier and replayed.</dd>
-<dt>95% interval</dt><dd>The range the true pass rate could plausibly sit in. Slices with fewer than 5 scored cases are marked underpowered. Quote counts, not bare percentages.</dd>
-</dl></section>
-
-<section id="gate"><h2>Release gate</h2>
-<p>The release gate reads one saved run and says whether that evidence supports moving toward deployment. It makes no model calls and costs nothing. It is conservative on purpose. Open a saved run in the tool to see the Release gate panel under the results table, or run <code>python -m blindspot_ci.cli release-gate --run RUN_ID</code>. The evaluation card carries the same decision.</p>
-<dl>
-<dt>DEMO_ONLY</dt><dd>The run used mock, fixture, synthetic, generated or corrupted evidence. These can only ever show DEMO_ONLY, however good the numbers look.</dd>
-<dt>NO_GO</dt><dd>A required condition has enough scored cases and its pass rate is below the 0.90 bar. The panel lists the failing conditions and the next experiments to run.</dd>
-<dt>NEEDS_REVIEW</dt><dd>Nothing is clearly failing, but the evidence is thin, uncertain, not reviewed by a second person, or not from a live run.</dd>
-<dt>GO_CANDIDATE</dt><dd>Every check passed. This is not an approval and not a safety certification. A person still decides.</dd>
-</dl>
-<p>Example: the saved COCO live run gives NO_GO because low light passed 6 of 10 and small object passed 19 of 24. The command exits with 0 for GO_CANDIDATE, 1 for NO_GO, 2 for NEEDS_REVIEW and 3 for DEMO_ONLY.</p></section>
-
-<section id="video"><h2>Record the demo (about three minutes)</h2>
-<p>Use this order for the hackathon video. Say only what the screen shows.</p>
-<ol>
-<li><b>0:00 The question.</b> Open the overview. Say what the tool does and that it is not a safety approval.</li>
-<li><b>0:20 The scoring rule.</b> Drag the amber box in the overview. Show the overlap number and PASS or FAIL change.</li>
-<li><b>0:45 The free demo.</b> Open Demo and press Run. Point at one passing step and one failing step. Say the banner: scripted answers, not SAM performance.</li>
-<li><b>1:20 The live run.</b> In the tool, switch to the Open Images set with a live key. Run 6 steps. Show the agent's reason for each choice and the mode label LIVE_META.</li>
-<li><b>2:00 A real miss.</b> Open a failed case. Show the green model box, the dashed human box and the score.</li>
-<li><b>2:20 The evidence.</b> Show the results table with intervals, the Release gate panel with its decision and next experiments, the evaluation card download and the Muse Wonder audit.</li>
-<li><b>2:45 The honest limits.</b> State that the agent has not been shown to beat random order, the photos are hydrants and stop signs, and small slices are underpowered.</li></ol></section>
-
-<section id="limits"><h2>What it cannot tell you</h2>
+<section aria-labelledby="not-h"><h2 id="not-h">What we have not tested</h2>
 <ul>
-<li>It tests one prompt wording on one photo per case. A pass is not a guarantee for that condition.</li>
-<li>Scores use box overlap. There is no mask-quality score, because there are no human masks for the Open Images photos.</li>
-<li>The public sets show hydrants and stop signs. They do not show how SAM handles your tag.</li>
-<li>Labels are checked by a second person only when a reviewer is named in the label record.</li>
-<li>Results hold for the listed model versions and dates.</li></ul></section>
-</main></div>
-<footer><div class="wrap">BLINDSPOT CI is a bounded evaluation, not a safety approval.</div></footer>
+<li>Practice mode shows the software works. It is not model quality.</li>
+<li>Most labels come from one person.</li>
+<li>The photo sets are small, so one result can move a lot.</li>
+<li>We used everyday objects and public clips, not your own factory photos yet.</li>
+<li>The model may have seen part of the DAVIS video frames in training. The gate flags this.</li>
+</ul></section>
+
+<section aria-labelledby="long-h"><h2 id="long-h">Real long video test</h2>
+<p>We ran the model on a public crowd video of 2,405 frames and followed 16 people through it. The first run had a scoring bug that we found and fixed: the model's boxes came back at half size. The verdict was Do not ship yet. Only 3 of 16 people were followed correctly on at least 90 percent of their frames, and the median person was followed on 82.5 percent of frames. People in crowded or dark parts of the clip were often followed with a weak overlap.</p>
+<p>Two caveats. Human boxes include hidden body parts, while the model outlines only what it sees. The camera is not fixed. The clip is non-commercial data and is not stored in this repository.</p></section>
+
+<section aria-labelledby="gloss-h"><h2 id="gloss-h">Glossary</h2>
+<dl>
+<dt>IoU</dt><dd>Overlap between two boxes: the shared area divided by the area they cover together. 1.00 is a perfect match.</dd>
+<dt>Wilson interval</dt><dd>A 95 percent range for the true pass rate. Few photos give a wide range on purpose.</dd>
+<dt>Bar</dt><dd>The pass rate a kind of photo must reach. Ours is 9 out of 10.</dd>
+<dt>Kind of photo</dt><dd>A group such as low light or small objects (called a condition in the code).</dd>
+<dt>Release gate</dt><dd>The cautious rule that turns saved scores into one of the four decisions.</dd>
+<dt>SAM 3.1</dt><dd>A Meta model that outlines objects in photos and video. It is the model we tested.</dd>
+</dl></section>
+
+<section aria-labelledby="play-h"><h2 id="play-h">Try the overlap score</h2>
+<details class="sec"><summary>Open the playground</summary><div class="in">
+<p>Move the amber box over the teal one and watch the overlap number. A test passes at 0.35 or more, which is the scorer's default.</p>
+<div class="play">
+   <svg id="board" viewBox="0 0 480 320" role="group" aria-label="Box overlap playground: an object, the model box and your label box">
+    <defs><pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="rgba(0,0,0,.12)" stroke-width="1"/></pattern></defs>
+    <rect width="480" height="320" fill="url(#grid)"/>
+    <rect x="210" y="96" width="120" height="132" fill="#6b7a88"/>
+    <circle cx="270" cy="124" r="12" fill="#e8ebee"/>
+    <rect x="228" y="156" width="84" height="8" fill="#e8ebee"/><rect x="228" y="176" width="64" height="8" fill="#e8ebee"/>
+    <rect id="sam" x="206" y="92" width="128" height="140" fill="none" stroke="var(--sam)" stroke-width="5"/>
+    <g id="human" tabindex="0" role="group" aria-label="Your label box. Arrow keys move it, shift and arrow keys resize it." style="cursor:move">
+     <rect id="hrect" x="150" y="70" width="120" height="120" fill="rgba(168,111,0,.12)" stroke="var(--human)" stroke-width="5" stroke-dasharray="14 8"/>
+     <circle id="hgrip" cx="270" cy="190" r="22" fill="transparent" style="cursor:nwse-resize"/><circle id="hdot" cx="270" cy="190" r="11" fill="var(--human)" pointer-events="none"/>
+    </g>
+   </svg>
+   <div class="readout" role="status"><output id="iou" aria-labelledby="iou-label">0.00</output><span id="iou-label">overlap (IoU)</span><span id="verdict" class="verdict fail">FAIL</span></div>
+   <div class="key"><span style="--c:var(--sam)">Model box</span><span style="--c:var(--human)">Your label (drag me)</span></div>
+   <p>Drag the amber box, or focus it and use the arrow keys. Hold shift to resize.</p>
+</div></div></details></section>
+</main>
+
+<footer><div class="wrap"><p>BLINDSPOT CI is a bounded evaluation, not a safety approval. Results hold for the listed models, photos and dates only.</p></div></footer>
+<script>
+(()=>{const svg=document.getElementById('board'),hr=document.getElementById('hrect'),grip=document.getElementById('hgrip'),dot=document.getElementById('hdot'),g=document.getElementById('human');
+const SAM=[206,92,334,232],MIN=24;let b=[150,70,270,190];
+function iou(a,c){const w=Math.max(0,Math.min(a[2],c[2])-Math.max(a[0],c[0])),h=Math.max(0,Math.min(a[3],c[3])-Math.max(a[1],c[1])),i=w*h,u=(a[2]-a[0])*(a[3]-a[1])+(c[2]-c[0])*(c[3]-c[1])-i;return u?i/u:0}
+function draw(){hr.setAttribute('x',b[0]);hr.setAttribute('y',b[1]);hr.setAttribute('width',b[2]-b[0]);hr.setAttribute('height',b[3]-b[1]);grip.setAttribute('cx',b[2]);grip.setAttribute('cy',b[3]);dot.setAttribute('cx',b[2]);dot.setAttribute('cy',b[3]);
+ const v=iou(b,SAM),ok=v>=0.35;document.getElementById('iou').textContent=v.toFixed(2);const t=document.getElementById('verdict');t.textContent=ok?'PASS':'FAIL';t.className='verdict '+(ok?'pass':'fail')}
+function pt(e){const p=svg.createSVGPoint();p.x=e.clientX;p.y=e.clientY;return p.matrixTransform(svg.getScreenCTM().inverse())}
+const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));let mode=null,start=null,orig=null;
+g.addEventListener('pointerdown',e=>{mode=e.target===grip?'size':'move';start=pt(e);orig=b.slice();g.setPointerCapture(e.pointerId);e.preventDefault()});
+g.addEventListener('pointermove',e=>{if(!mode)return;const p=pt(e),dx=p.x-start.x,dy=p.y-start.y;
+ if(mode==='move'){const w=orig[2]-orig[0],h=orig[3]-orig[1],x=clamp(orig[0]+dx,0,480-w),y=clamp(orig[1]+dy,0,320-h);b=[x,y,x+w,y+h]}
+ else b=[orig[0],orig[1],clamp(orig[2]+dx,orig[0]+MIN,480),clamp(orig[3]+dy,orig[1]+MIN,320)];draw()});
+g.addEventListener('pointerup',()=>{mode=null});g.addEventListener('pointercancel',()=>{mode=null});
+g.addEventListener('keydown',e=>{const s=e.shiftKey?'size':'move',d={ArrowLeft:[-8,0],ArrowRight:[8,0],ArrowUp:[0,-8],ArrowDown:[0,8]}[e.key];if(!d)return;e.preventDefault();
+ if(s==='move'){const w=b[2]-b[0],h=b[3]-b[1],x=clamp(b[0]+d[0],0,480-w),y=clamp(b[1]+d[1],0,320-h);b=[x,y,x+w,y+h]}
+ else b=[b[0],b[1],clamp(b[2]+d[0],b[0]+MIN,480),clamp(b[3]+d[1],b[1]+MIN,320)];draw()});
+draw()})();
+</script>
 </body></html>
