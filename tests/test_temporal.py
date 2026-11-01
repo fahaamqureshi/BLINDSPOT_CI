@@ -10,6 +10,7 @@ from blindspot_ci.experiment import temporal
 from blindspot_ci.experiment.release_gate import evaluate, load_policy
 from blindspot_ci.experiment.runner import load_run
 from blindspot_ci.experiment.temporal import (
+    build_sequence_request,
     plan_long_video,
     render_temporal_report,
     run_long_video,
@@ -67,6 +68,25 @@ def test_plan_and_dry_cost_are_offline():
     plan = plan_long_video(_manifest(), ["MOT20-02"], 1.0)
     assert plan[0]["frames"] == 60
     assert plan[0]["cost_usd"] == pytest.approx(60 * 0.0002)
+
+
+def test_edge_seed_is_clamped_but_original_human_box_scores(tmp_path):
+    manifest = _manifest()
+    target = manifest["sequences"][0]["targets"][0]
+    target["seed_box"] = [0, 0, 10, 100]
+    target["frames"][0]["box"] = [0, 0, 10, 100]
+    request, clamped = build_sequence_request(manifest["sequences"][0])
+    prompt_text = request.body["input"][0]["content"][0]["text"]
+    assert clamped == 1 and ";y2=99;" in prompt_text
+    body = _sse(_delta("<1f>1<|box;x1=0;y1=0;x2=10;y2=100|>\n"), _complete())
+    report = run_long_video(manifest, ["MOT20-02"], 1.0,
+                            runs_dir=tmp_path / "runs", raw_dir=tmp_path / "raw", adapter=_adapter(body))
+    saved = json.loads((tmp_path / "runs" / f"{report['id']}.temporal.json").read_text())
+    sequence = saved["sequences"][0]
+    assert sequence["seed_boxes_clamped"] == 1
+    assert sequence["targets"][0]["frames"][0]["human_box"] == [0, 0, 10, 100]
+    assert sequence["targets"][0]["frames"][0]["status"] == "PASS"
+    assert "Seed boxes clamped inside the frame: 1" in render_temporal_report(tmp_path / "runs", report["id"])
 
 
 def test_long_video_scores_raw_output_and_temporal_metrics(tmp_path):

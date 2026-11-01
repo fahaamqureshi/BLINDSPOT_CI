@@ -88,15 +88,32 @@ def _rounded_int(value: Any) -> int:
     return round(float(value))
 
 
-def _seed_prompts(sequence: dict[str, Any]) -> list[VideoBoxPrompt]:
+def _seed_prompts(sequence: dict[str, Any]) -> tuple[list[VideoBoxPrompt], int]:
+    width, height = int(sequence["frame_size"][0]), int(sequence["frame_size"][1])
     prompts = []
+    clamped_count = 0
     for target in sequence["targets"]:
         seed = target.get("seed_box")
         if not isinstance(seed, list) or len(seed) != 4:
             raise ValueError(f"target {_target_label(target)} has an invalid seed_box")
+        original = tuple(_rounded_int(value) for value in seed)
+        clamped = (
+            max(0, min(original[0], width - 1)), max(0, min(original[1], height - 1)),
+            max(0, min(original[2], width - 1)), max(0, min(original[3], height - 1)),
+        )
+        clamped_count += clamped != original
         prompts.append(VideoBoxPrompt(
-            _target_label(target), tuple(_rounded_int(value) for value in seed), int(target["seed_frame"])))
-    return prompts
+            _target_label(target), clamped, int(target["seed_frame"])))
+    return prompts, clamped_count
+
+
+def build_sequence_request(sequence: dict[str, Any]):
+    """Build one validated request and count prompt boxes moved inside the frame."""
+    prompts, clamped_count = _seed_prompts(sequence)
+    request = build_video_request(
+        prompts, frame_width=int(sequence["frame_size"][0]), frame_height=int(sequence["frame_size"][1]),
+        video_url=str(sequence["source_url"]), propagation_direction="forward")
+    return request, clamped_count
 
 
 def _sequence_cost(frame_count: int) -> float:
@@ -120,7 +137,7 @@ def plan_long_video(manifest: dict[str, Any], names: list[str], budget_usd: floa
             raise ValueError(f"sequence {name} is not in the manifest")
         sequence = sequences[name]
         frames = int(sequence["frame_count"])
-        targets = _seed_prompts(sequence)
+        targets, _ = _seed_prompts(sequence)
         plan.append({"sequence": name, "frames": frames, "targets": len(targets),
                      "cost_usd": _sequence_cost(frames), "video_url": sequence["source_url"]})
     return plan
@@ -351,14 +368,12 @@ def run_long_video(manifest: dict[str, Any], names: list[str], budget_usd: float
     for item in plan:
         name = item["sequence"]
         sequence = sequences[name]
-        prompts = _seed_prompts(sequence)
-        request = build_video_request(prompts, frame_width=int(sequence["frame_size"][0]),
-                                      frame_height=int(sequence["frame_size"][1]),
-                                      video_url=str(sequence["source_url"]), propagation_direction="forward")
+        request, clamped_count = build_sequence_request(sequence)
         raw_path = raw_dir / f"{run_id}-{name}.txt"
         sequence_result = {"name": name, "fps": int(sequence["fps"]),
                            "frame_count": int(sequence["frame_count"]),
-                           "luminance_samples": sequence.get("luminance_samples", []), "targets": []}
+                           "luminance_samples": sequence.get("luminance_samples", []),
+                           "seed_boxes_clamped": clamped_count, "targets": []}
         cost_before = guard.cost_usd
         try:
             if raw_input is not None:
@@ -503,6 +518,8 @@ def render_temporal_report(runs_dir: Path, run_id: str) -> str:
             f"  Retention by condition: {condition_text}.",
             f"  Absolute luminance range: {lum}. Dark is relative to each sequence and means little where the range is narrow.",
         ])
+        if sequence.get("seed_boxes_clamped", 0) > 0:
+            sequence_lines.append(f"  Seed boxes clamped inside the frame: {sequence['seed_boxes_clamped']}.")
         total_targets += len(sequence["targets"])
         total_held += held
         total_reliable += sum(value >= 0.9 for value in retentions)
