@@ -44,6 +44,14 @@ DATASET_TYPE = "HUMAN_LABELED_VIDEO"
 MAX_RAW_TEXT_BYTES = 3000 * 1024 * 1024
 
 
+class VideoRequestRefused(MetaApiError):
+    """An HTTP refusal received before the video stream began processing."""
+
+    def __init__(self, message: str, reserved_cost: float):
+        super().__init__(message)
+        self.reserved_cost = reserved_cost
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -107,12 +115,13 @@ def _seed_prompts(sequence: dict[str, Any]) -> tuple[list[VideoBoxPrompt], int]:
     return prompts, clamped_count
 
 
-def build_sequence_request(sequence: dict[str, Any]):
+def build_sequence_request(sequence: dict[str, Any], *, file_id: str | None = None):
     """Build one validated request and count prompt boxes moved inside the frame."""
     prompts, clamped_count = _seed_prompts(sequence)
     request = build_video_request(
         prompts, frame_width=int(sequence["frame_size"][0]), frame_height=int(sequence["frame_size"][1]),
-        video_url=str(sequence["source_url"]), propagation_direction="forward")
+        video_url=None if file_id else str(sequence["source_url"]), file_id=file_id,
+        propagation_direction="forward")
     return request, clamped_count
 
 
@@ -202,8 +211,9 @@ def _direct_video_call(adapter: MetaSam31VideoAdapter, request: Any, frames: int
                     try:
                         response.raise_for_status()
                     except httpx.HTTPError as exc:
-                        raise MetaApiError(
-                            f"Meta API video request failed (not retried): {adapter._describe(exc)}") from exc
+                        raise VideoRequestRefused(
+                            f"Meta API video request failed (not retried): {adapter._describe(exc)}",
+                            reserved) from exc
                 parsed = parse_video_stream(lines(response))
     except httpx.HTTPError as exc:
         if parsed is None:
@@ -351,7 +361,9 @@ def run_long_video(manifest: dict[str, Any], names: list[str], budget_usd: float
                    transport: httpx.BaseTransport | None = None,
                    run_id: str | None = None,
                    call: Callable[[Any, Any, int, BudgetGuard, Path], VideoResult] | None = None,
-                   raw_input: Path | None = None, replayed_from_raw: bool = False) -> dict[str, Any]:
+                   raw_input: Path | None = None, replayed_from_raw: bool = False,
+                   video_file_id: str | None = None, video_file_uploaded: bool = False,
+                   video_file_name: str | None = None, video_file_bytes: int | None = None) -> dict[str, Any]:
     """Run selected sequences. The caller is responsible for checking live settings."""
     plan = plan_long_video(manifest, names, budget_usd)
     sequences = _sequence_map(manifest)
@@ -368,7 +380,7 @@ def run_long_video(manifest: dict[str, Any], names: list[str], budget_usd: float
     for item in plan:
         name = item["sequence"]
         sequence = sequences[name]
-        request, clamped_count = build_sequence_request(sequence)
+        request, clamped_count = build_sequence_request(sequence, file_id=video_file_id)
         raw_path = raw_dir / f"{run_id}-{name}.txt"
         sequence_result = {"name": name, "fps": int(sequence["fps"]),
                            "frame_count": int(sequence["frame_count"]),
@@ -396,8 +408,12 @@ def run_long_video(manifest: dict[str, Any], names: list[str], budget_usd: float
                         steps.append(_step(name, target, scored_target, row, manifest_digest,
                                            "CACHE_LIVE_META" if replayed_from_raw else "LIVE_META"))
         except (BudgetExceeded, MetaApiError, OSError, ValueError) as exc:
+            if isinstance(exc, VideoRequestRefused):
+                guard.release_cost(exc.reserved_cost)
             total_estimated += guard.cost_usd - cost_before
-            errors.append(f"{name}: {str(exc).replace(getattr(adapter, 'api_key', ''), '[redacted]')}")
+            note = "; request refused before processing, reservation released" \
+                if isinstance(exc, VideoRequestRefused) else ""
+            errors.append(f"{name}: {str(exc).replace(getattr(adapter, 'api_key', ''), '[redacted]')}{note}")
             for target in sequence["targets"]:
                 scored_target, _ = _score_target(
                     target, type("Parsed", (), {"frames": []})(), {}, min_iou, str(exc))
@@ -416,12 +432,17 @@ def run_long_video(manifest: dict[str, Any], names: list[str], budget_usd: float
                               {step["outcome"]["case_id"]: step["case"]["condition"] for step in steps}, min_iou),
         "calls": guard.calls, "estimated_cost_usd": round(total_estimated or guard.cost_usd, 6),
     }
+    if video_file_uploaded:
+        report["video_file_uploaded"] = True
+        report["video_file_deleted"] = False
+        report["video_file_name"] = video_file_name
+        report["video_file_bytes"] = video_file_bytes
     if replayed_from_raw:
         report["replayed_from_raw"] = str(raw_input)
     runs_dir.mkdir(parents=True, exist_ok=True)
     atomic_write_text(runs_dir / f"{run_id}.json", json.dumps(report, indent=2))
     temporal = {"run_id": run_id, "dataset": DATASET_ID, "min_iou": min_iou,
-                "sequences": temporal_sequences}
+                "estimated_cost_usd": report["estimated_cost_usd"], "sequences": temporal_sequences}
     atomic_write_text(_temporal_path(runs_dir, run_id), json.dumps(temporal, indent=2))
     return report
 

@@ -68,6 +68,10 @@ MOT20 human boxes cover the whole person including hidden parts, while SAM boxes
 Low scores on frames tagged occluded may reflect that labelling convention and not a model loss.
 MOT20 is not a fixed-camera dataset.
 
-The provider accepts a video URL directly. If the URL is refused, a future fallback could upload the
-file and use its returned file ID. That is a reasonable compatibility improvement, but it is not part
-of this offline wiring.
+## robots.txt refusal
+
+Meta may refuse a public video URL when the host blocks automated fetches with robots.txt. The
+official fallback is the Files API: upload the MP4 as multipart form data with `purpose=user_data`
+and a `file` part, then put the returned file ID in the request's `input_video.file_id` field. The
+long-video command deletes the uploaded file after the run. Uploads require both `--video-file` and
+the explicit `--allow-upload` flag, and are still protected by the live provider and budget guards.

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -14,6 +15,7 @@ from blindspot_ci.providers.meta import MetaApiError, _MetaBase
 VIDEO_USD_PER_FRAME = 0.20 / 1000
 VIDEO_MIN_BILLED_FRAMES = 50
 VIDEO_MAX_FRAMES = 15000
+VIDEO_UPLOAD_MAX_BYTES = 1_073_741_824
 MAX_PROMPTED_OBJECTS = 16
 PROPAGATION_DIRECTIONS = ("both", "forward", "backward")
 
@@ -234,6 +236,49 @@ class MetaSam31VideoAdapter(_MetaBase):
                  transport: httpx.BaseTransport | None = None):
         super().__init__(api_key, base_url, timeout, retries=0)
         self.transport = transport
+
+    def upload_file(self, path: str | Path) -> str:
+        """Upload one MP4 for inference, with no retry and a pre-read size check."""
+        file_path = Path(path)
+        if file_path.suffix.lower() != ".mp4":
+            raise ValueError("video upload requires an .mp4 file")
+        size = file_path.stat().st_size
+        if size > VIDEO_UPLOAD_MAX_BYTES:
+            raise ValueError(f"video file is {size} bytes, above the {VIDEO_UPLOAD_MAX_BYTES} byte limit")
+        headers = {"Authorization": f"Bearer {self.api_key}"}
+        try:
+            with file_path.open("rb") as handle, httpx.Client(transport=self.transport, timeout=self.timeout) as client:
+                response = client.post(f"{self.base_url}/files", headers=headers,
+                                       data={"purpose": "user_data"},
+                                       files={"file": (file_path.name, handle, "video/mp4")})
+                if response.status_code >= 400:
+                    response.read()
+                    response.raise_for_status()
+                payload = response.json()
+        except (httpx.HTTPError, OSError, ValueError) as exc:
+            raise MetaApiError(f"Meta API file upload failed (not retried): {self._describe(exc)}") from exc
+        file_id = payload.get("id") if isinstance(payload, dict) else None
+        if not isinstance(file_id, str) or not file_id:
+            raise MetaApiError("Meta API file upload failed: response did not contain a file id")
+        return file_id
+
+    def delete_file(self, file_id: str) -> dict[str, Any]:
+        """Delete an uploaded file once the inference request has finished."""
+        if not file_id:
+            raise ValueError("file_id is required")
+        headers = {"Authorization": f"Bearer {self.api_key}"}
+        try:
+            with httpx.Client(transport=self.transport, timeout=self.timeout) as client:
+                response = client.delete(f"{self.base_url}/files/{file_id}", headers=headers)
+                if response.status_code >= 400:
+                    response.read()
+                    response.raise_for_status()
+                payload = response.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            raise MetaApiError(f"Meta API file delete failed (not retried): {self._describe(exc)}") from exc
+        if not isinstance(payload, dict):
+            raise MetaApiError("Meta API file delete failed: response was not an object")
+        return payload
 
     def track(self, request: VideoRequest, frames: int, budget: BudgetGuard) -> VideoResult:
         reserved = reserve_cost(budget, frames)  # raises BudgetExceeded before any network use

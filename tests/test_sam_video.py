@@ -6,6 +6,7 @@ import pytest
 from blindspot_ci.budget import BudgetExceeded, BudgetGuard
 from blindspot_ci.providers.meta import MetaApiError
 from blindspot_ci.providers.sam_video import (
+    VIDEO_UPLOAD_MAX_BYTES,
     VIDEO_USD_PER_FRAME,
     MetaSam31VideoAdapter,
     VideoBoxPrompt,
@@ -198,3 +199,34 @@ def test_budget_blocks_before_any_request():
     with pytest.raises(BudgetExceeded):
         adapter(lambda r: calls.append(1)).track(req, frames=60, budget=guard)
     assert calls == []
+
+
+def test_upload_and_delete_file_use_fake_transport(tmp_path):
+    path = tmp_path / "clip.mp4"
+    path.write_bytes(b"fake video bytes")
+    seen = []
+
+    def handler(request):
+        seen.append((request.method, request.url.path, request.content))
+        if request.method == "POST":
+            return httpx.Response(200, json={"id": "file-123", "status": "uploaded"})
+        return httpx.Response(200, json={"id": "file-123", "deleted": True})
+
+    client = adapter(handler)
+    assert client.upload_file(path) == "file-123"
+    assert client.delete_file("file-123")["deleted"] is True
+    assert seen[0][0:2] == ("POST", "/v1/files")
+    assert b"purpose" in seen[0][2] and b"user_data" in seen[0][2]
+    assert b"clip.mp4" in seen[0][2] and b"fake video bytes" in seen[0][2]
+    assert seen[1][0:2] == ("DELETE", "/v1/files/file-123")
+
+
+def test_upload_size_cap_is_checked_before_open(tmp_path, monkeypatch):
+    path = tmp_path / "clip.mp4"
+    path.write_bytes(b"too large")
+    monkeypatch.setattr("blindspot_ci.providers.sam_video.VIDEO_UPLOAD_MAX_BYTES", 2)
+    calls = []
+    with pytest.raises(ValueError, match="above"):
+        adapter(lambda request: calls.append(request)).upload_file(path)
+    assert calls == []
+    assert VIDEO_UPLOAD_MAX_BYTES > 0

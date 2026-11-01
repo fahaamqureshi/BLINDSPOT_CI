@@ -277,6 +277,8 @@ def _raw_source(path: str, sequence: str):
 
 
 def long_video(args) -> int:
+    from pathlib import Path
+
     from blindspot_ci.experiment.temporal import load_manifest, plan_long_video, run_long_video
 
     if not args.manifest or not args.sequences:
@@ -284,6 +286,13 @@ def long_video(args) -> int:
         return 2
     if args.from_raw and len(args.sequences) != 1:
         print("--from-raw requires exactly one sequence")
+        return 2
+    video_file_arg = getattr(args, "video_file", None)
+    if args.from_raw and video_file_arg:
+        print("--from-raw and --video-file cannot be used together")
+        return 2
+    if video_file_arg and len(args.sequences) != 1:
+        print("--video-file requires exactly one sequence")
         return 2
     if not args.from_raw and args.budget_usd is None:
         print("long-video requires --budget-usd unless --from-raw is used")
@@ -294,6 +303,17 @@ def long_video(args) -> int:
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         print(f"long-video failed: {exc}")
         return 2
+    video_path = None
+    video_bytes = None
+    if video_file_arg:
+        video_path = Path(video_file_arg)
+        try:
+            if video_path.suffix.lower() != ".mp4":
+                raise ValueError("video upload requires an .mp4 file")
+            video_bytes = video_path.stat().st_size
+        except (OSError, ValueError) as exc:
+            print(f"long-video failed: {exc}")
+            return 2
     print("Long-video plan")
     for item in plan:
         print(f"{item['sequence']}: {item['targets']} targets, {item['frames']} frames, "
@@ -301,6 +321,8 @@ def long_video(args) -> int:
     total = sum(item["cost_usd"] for item in plan)
     print(f"total: {sum(item['frames'] for item in plan)} frames, exact cost ${total:.6f}")
     if args.dry_run:
+        if video_path is not None:
+            print(f"dry run: would upload {video_bytes} bytes from {video_path}")
         print("dry run: no network call made")
         return 0
 
@@ -328,12 +350,40 @@ def long_video(args) -> int:
     if not cfg.model_api_key:
         print("long-video requires MODEL_API_KEY before any network use")
         return 2
+    if video_path is not None and not args.allow_upload:
+        print("--video-file requires --allow-upload before any upload")
+        return 2
     from blindspot_ci.providers.sam_video import MetaSam31VideoAdapter
 
     try:
         adapter = MetaSam31VideoAdapter(cfg.model_api_key, cfg.meta_base_url)
-        report = run_long_video(manifest, args.sequences, args.budget_usd, args.min_iou,
-                                runs_dir=cfg.runs_dir, adapter=adapter)
+        if video_path is None:
+            report = run_long_video(manifest, args.sequences, args.budget_usd, args.min_iou,
+                                    runs_dir=cfg.runs_dir, adapter=adapter)
+        else:
+            from blindspot_ci.fsutil import atomic_write_text
+
+            file_id = adapter.upload_file(video_path)
+            report = None
+            delete_error = None
+            try:
+                report = run_long_video(
+                    manifest, args.sequences, args.budget_usd, args.min_iou,
+                    runs_dir=cfg.runs_dir, adapter=adapter, video_file_id=file_id,
+                    video_file_uploaded=True, video_file_name=video_path.name,
+                    video_file_bytes=video_bytes)
+            finally:
+                try:
+                    adapter.delete_file(file_id)
+                except (OSError, RuntimeError, ValueError) as exc:
+                    delete_error = str(exc)
+                if report is not None:
+                    report["video_file_deleted"] = delete_error is None
+                    if delete_error:
+                        report["errors"].append(f"uploaded file delete failed: {delete_error}")
+                    atomic_write_text(cfg.runs_dir / f"{report['id']}.json", json.dumps(report, indent=2))
+            if delete_error:
+                print(f"error: uploaded file delete failed: {delete_error}")
     except (OSError, ValueError, RuntimeError) as exc:
         print(f"long-video failed: {exc}")
         return 1
@@ -579,6 +629,8 @@ def main() -> None:
     lv.add_argument("--dry-run", action="store_true")
     lv.add_argument("--min-iou", type=float, default=0.35)
     lv.add_argument("--from-raw", help="replay one saved raw stream without network or live settings")
+    lv.add_argument("--video-file", help="upload one local MP4 for a single sequence")
+    lv.add_argument("--allow-upload", action="store_true", help="allow the local MP4 upload")
     tv = sub.add_parser("temporal-report", help="read a saved long-video temporal report")
     tv.add_argument("--run", required=True)
     cl = sub.add_parser("compare-labels", help="agreement between two people who labeled the same photos")

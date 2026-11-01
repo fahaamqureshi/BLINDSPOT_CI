@@ -31,6 +31,11 @@ class BudgetGuard:
             self.calls += calls
             self.cost_usd += cost_usd
 
+    def release_cost(self, cost_usd: float) -> None:
+        """Release a reservation refused before processing while retaining its call count."""
+        with self._lock:
+            self.cost_usd = max(0.0, self.cost_usd - cost_usd)
+
     def exhausted(self) -> bool:
         with self._lock:
             return self.calls >= self.max_calls or self.cost_usd >= self.max_cost_usd - 1e-9

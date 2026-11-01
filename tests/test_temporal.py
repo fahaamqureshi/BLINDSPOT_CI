@@ -15,7 +15,7 @@ from blindspot_ci.experiment.temporal import (
     render_temporal_report,
     run_long_video,
 )
-from blindspot_ci.providers.sam_video import MetaSam31VideoAdapter
+from blindspot_ci.providers.sam_video import MetaSam31VideoAdapter, VideoResult
 
 KEY = "LLM_test_key"
 
@@ -145,6 +145,10 @@ def test_http_500_is_one_attempt_and_raw_is_saved(tmp_path):
                             adapter=MetaSam31VideoAdapter(KEY, transport=httpx.MockTransport(handler)))
     assert len(calls) == 1
     assert (tmp_path / "raw" / f"{report['id']}-MOT20-02.txt").read_text() == "server failed"
+    assert report["calls"] == 1 and report["estimated_cost_usd"] == 0.0
+    assert "request refused before processing, reservation released" in report["errors"][0]
+    temporal = json.loads((tmp_path / "runs" / f"{report['id']}.temporal.json").read_text())
+    assert temporal["estimated_cost_usd"] == 0.0
 
 
 def test_cut_stream_keeps_partial_raw_and_marks_later_frames_error(tmp_path):
@@ -203,6 +207,63 @@ def test_raw_replay_needs_no_live_settings_and_costs_zero(monkeypatch, tmp_path,
     assert report["estimated_cost_usd"] == 0.0
     assert report["replayed_from_raw"].endswith("saved-MOT20-02.txt")
     assert "replayed raw text" in capsys.readouterr().out
+
+
+def test_video_file_dry_run_reports_bytes_without_live_settings(tmp_path, capsys):
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(json.dumps(_manifest()), encoding="utf-8")
+    video_path = tmp_path / "clip.mp4"
+    video_path.write_bytes(b"offline clip")
+    args = SimpleNamespace(manifest=str(manifest_path), sequences=["MOT20-02"], budget_usd=1.0,
+                           dry_run=True, min_iou=0.35, from_raw=None,
+                           video_file=str(video_path), allow_upload=False)
+    assert cli.long_video(args) == 0
+    output = capsys.readouterr().out
+    assert "would upload 12 bytes" in output
+    assert "no network call made" in output
+
+
+def test_video_file_upload_lifecycle_uses_file_id_and_records_deletion(monkeypatch, tmp_path):
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(json.dumps(_manifest()), encoding="utf-8")
+    video_path = tmp_path / "clip.mp4"
+    video_path.write_bytes(b"offline clip")
+    seen = []
+
+    class FakeAdapter:
+        api_key = "test-key"
+
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def upload_file(self, path):
+            seen.append(("upload", Path(path).name))
+            return "file-123"
+
+        def delete_file(self, file_id):
+            seen.append(("delete", file_id))
+            return {"id": file_id, "deleted": True}
+
+        def track(self, request, frames, budget):
+            seen.append(("track", request.body["input"][0]["content"][1]))
+            budget.reserve(frames * 0.0002)
+            parsed = temporal.parse_video_stream(
+                _sse(_delta("<1f>1<|box;x1=0;y1=0;x2=10;y2=10|>\n"), _complete()).splitlines())
+            return VideoResult(parsed, request.id_to_label, frames * 0.0002, None)
+
+    monkeypatch.setattr("blindspot_ci.providers.sam_video.MetaSam31VideoAdapter", FakeAdapter)
+    monkeypatch.setattr(cli, "Settings", lambda: SimpleNamespace(
+        provider="meta", live_api_enabled=True, model_api_key="test-key",
+        meta_base_url="https://example.invalid/v1", runs_dir=tmp_path / "runs"))
+    args = SimpleNamespace(manifest=str(manifest_path), sequences=["MOT20-02"], budget_usd=1.0,
+                           dry_run=False, min_iou=0.35, from_raw=None,
+                           video_file=str(video_path), allow_upload=True)
+    assert cli.long_video(args) == 0
+    assert seen == [("upload", "clip.mp4"), ("track", {"type": "input_video", "file_id": "file-123"}),
+                    ("delete", "file-123")]
+    report_path = next((tmp_path / "runs").glob("[0-9a-f]*.json"))
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    assert report["video_file_uploaded"] is True and report["video_file_deleted"] is True
 
 
 @pytest.mark.parametrize("provider,enabled,key,expected", [
