@@ -3,9 +3,14 @@
 .git
 artifacts
 dist
+build
+__pycache__
+*.egg-info
 .blindspot-cache
 .pytest_cache
 .ruff_cache
+.coverage
+htmlcov
 datasets/real
 datasets/open
 datasets/hard

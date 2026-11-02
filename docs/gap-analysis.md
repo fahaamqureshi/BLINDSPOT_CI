@@ -25,7 +25,7 @@ by real, human-labeled evidence. The software for that is built and works. The e
   and are kept out of every result.
 - Missing: photos of your actual tray tag. Everything so far is proxy data (hydrants, stop signs, animals).
   If your real use is the tray tag, that data is the single biggest gap, and no tooling replaces it.
-- Live API access is intermittent (it failed again on 2026-11-01). The 132-case COCO set was run live once it returned (`docs/results-coco.md`).
+- Live API access is intermittent (it failed again on 2026-11-01). The 132-case COCO set was run live once it returned (`docs/results-detail.md`).
 
 ## What serious teams and standards ask for, against what exists
 
@@ -38,7 +38,7 @@ guide and check the standards themselves before quoting them.
 | Results sliced by condition, with uncertainty | ML Test Score model tests; slice-discovery work | Done. Wilson intervals, underpowered flags | None |
 | Enough cases to back a claim | Statistics; SOTIF notes that rare events need large samples | Stated, not met. Claiming under 1% failure needs 299 failure-free independent cases per slice | Collect more scenes, then report counts per slice |
 | Independent labels and a human performance bound | SAM 3 SA-Co Gold uses triple annotation | Missing. One annotator for most labels | Second annotator on at least 30 percent of cases. `compare-labels` now reports agreement and kappa |
-| Mask quality, not only box overlap | Segmentation benchmarks score masks | Done for the video set: mean J 0.93, boats weakest at 0.79 (see `docs/results-hard-and-video.md`). Not possible for Open Images, which has boxes only | Label masks for your tray photos if outline quality matters |
+| Mask quality, not only box overlap | Segmentation benchmarks score masks | Done for the video set: mean J 0.93, boats weakest at 0.79 (see `docs/results-detail.md`). Not possible for Open Images, which has boxes only | Label masks for your tray photos if outline quality matters |
 | Coverage of the conditions that trigger failures | ISO 21448 (SOTIF) triggering conditions | Mostly done. `coverage` counts cases per dataset and condition and flags thin cells | List the conditions your tray faces and fill the empty and thin cells |
 | Data and pipeline checks, reproducible runs | ML Test Score data and infrastructure tests | Mostly done. Image hashes, run ids, replayable cache, CI runs on GitHub | Keep CI green; build the Docker image once |
 | A regression gate between model versions | ML Test Score model tests | Done. `compare-runs` pairs scored cases and uses a two-sided exact sign test | Keep baseline and candidate runs on the same cases, then inspect the regression and fix lists |

@@ -1,27 +1,12 @@
-# Deploying and production readiness
+# Production readiness
 
 BLINDSPOT CI is a local-first evaluation tool. It runs on your machine with your own key. A public
-server is safe only as a scripted demo with no key. This page says what was checked, what was fixed
-and what is still open.
+server is safe only as a scripted demo with no key. This page is the readiness record: what was
+checked, what was fixed and what is still open. How to deploy the public mock demo lives in one
+place, `docs/free-deployment.md`. Local run steps live in `README.md`.
 
-## Run it
-
-Local, with or without a key:
-
-```powershell
-python -m pip install -e ".[dev]"
-python -m blindspot_ci.cli serve        # http://127.0.0.1:8000
-```
-
-Public demo in a container (scripted answers, no key, no private photos):
-
-```powershell
-docker build -t blindspot-ci .
-docker run -p 8000:8000 -e BLINDSPOT_ALLOWED_HOSTS=demo.example.com blindspot-ci
-```
-
-The image was written but not built or run here, because Docker is not installed on the development
-machine. Build it once in CI or on a machine with Docker before relying on it.
+The Docker image was written but not built or run on the development machine, because Docker is not
+installed there. Build it once on a machine with Docker before relying on it.
 
 ## Settings that matter
 
@@ -82,4 +67,4 @@ Fixed:
   a live run. The mock key already follows the scripted fixtures.
 - Run files, cache files and the provenance log grow without limit. Clear `artifacts` and
   `.blindspot-cache` when you want space back.
-- The Docker image has not been built or run yet. Docker is not installed here and CI does not build it. CI runs ruff and pytest on every push and pull request and is green on main.
+- The Docker image has not been built or run yet. Docker is not installed here and CI does not build it. CI runs ruff and pytest on every push and pull request.

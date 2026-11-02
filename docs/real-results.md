@@ -23,14 +23,14 @@ Nov 1 for COCO.
 - Slice tests: low light 6 of 10 against 113 of 122 for the rest has p 0.0087 raw and 0.0612 after Holm
   correction, so the label is not distinguishable from chance.
 - Caveats: one run, 10 to 30 cases per condition, COCO may have been seen in training (unknown), and photo
-  licensing is not yet confirmed for public display. See `docs/results-coco.md`.
+  licensing is not yet confirmed for public display. See `docs/results-detail.md`.
 
 ## DAVIS 2017 video frames
 
 - 112 frames from 14 clips. Decision NEEDS_REVIEW.
 - DAVIS is likely seen by SAM in training. This is UNVERIFIED, from summaries of the SAM 2 and SAM 3 papers.
   Check https://arxiv.org/abs/2408.00714 and https://arxiv.org/abs/2511.16719 before quoting it.
-- Caveats: frames of one clip are correlated, so treat it as 14 clips. See `docs/results-hard-and-video.md`.
+- Caveats: frames of one clip are correlated, so treat it as 14 clips. See `docs/results-detail.md`.
 
 ## Real long video test
 
