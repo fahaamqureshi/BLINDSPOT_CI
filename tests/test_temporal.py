@@ -299,8 +299,7 @@ def test_raw_replay_needs_no_live_settings_and_costs_zero(monkeypatch, tmp_path,
     args = SimpleNamespace(manifest=str(manifest_path), sequences=["MOT20-02"], budget_usd=None,
                            dry_run=False, min_iou=0.35, from_raw=str(raw_dir))
     assert cli.long_video(args) == 0
-    report_path = next(path for path in (tmp_path / "runs").glob("[0-9a-f]*.json")
-                       if not path.name.endswith(".temporal.json"))
+    report_path = next((tmp_path / "runs").glob("[0-9a-f]*.json"))
     report = json.loads(report_path.read_text(encoding="utf-8"))
     assert report["mode"] == "CACHE_LIVE_META"
     assert report["estimated_cost_usd"] == 0.0
@@ -360,7 +359,8 @@ def test_video_file_upload_lifecycle_uses_file_id_and_records_deletion(monkeypat
     assert cli.long_video(args) == 0
     assert seen == [("upload", "clip.mp4"), ("track", {"type": "input_video", "file_id": "file-123"}),
                     ("delete", "file-123")]
-    report_path = next((tmp_path / "runs").glob("[0-9a-f]*.json"))
+    report_path = next(path for path in (tmp_path / "runs").glob("[0-9a-f]*.json")
+                       if not path.name.endswith(".temporal.json"))
     report = json.loads(report_path.read_text(encoding="utf-8"))
     assert report["video_file_uploaded"] is True and report["video_file_deleted"] is True
 
