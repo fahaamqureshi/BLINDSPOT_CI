@@ -297,6 +297,53 @@ def test_card_has_intervals_flags_and_no_forbidden_characters(client, run_id):
     assert client.get("/api/runs/not-a-run/card").status_code == 404
 
 
+def _card_run(planner):
+    run = {
+        "id": "a" * 16, "mode": "LIVE_META", "model": "sam-3.1",
+        "started_at": "2026-01-01T00:00:00Z", "calls": 0, "estimated_cost_usd": 0.0,
+        "min_iou": 0.35,
+        "dataset": {"id": "test", "type": "HUMAN_LABELED_REAL_PHOTOS", "annotation_status": "person"},
+        "summary": {"tested": 0, "passed": 0, "failed": 0, "unknown": 0, "errors": 0, "scored": 0,
+                    "underpowered": True, "by_condition": {}},
+        "steps": [], "errors": [],
+    }
+    if planner is not None:
+        run["planner"] = planner
+    return run
+
+
+def test_card_for_scripted_mock_run_does_not_credit_muse(client, run_id):
+    body = client.get(f"/api/runs/{run_id}/card").text
+    assert "Planner: MOCK_POLICY" in body
+    assert "Tests followed a fixed scripted order from a simulated mock planner." in body
+    assert "Muse Spark" not in body
+
+
+def test_card_for_muse_planner_run_credits_muse_spark():
+    from blindspot_ci.experiment.card import build_card
+
+    body = build_card(_card_run("MUSE_SPARK_AGENT"))
+    assert "Planner: MUSE_SPARK_AGENT" in body
+    assert "A Muse Spark agent picks each test by function calling and sees earlier results." in body
+
+
+def test_card_without_a_recorded_planner_uses_neutral_wording():
+    from blindspot_ci.experiment.card import build_card
+
+    body = build_card(_card_run(None))
+    assert "Planner: not recorded" in body
+    assert "Test order recorded in the run was used." in body
+    assert "Muse Spark" not in body
+
+
+def test_card_for_heuristic_run_does_not_credit_muse():
+    from blindspot_ci.experiment.card import build_card
+
+    body = build_card(_card_run("heuristic"))
+    assert "Tests followed a heuristic order set by plain Python rules." in body
+    assert "Muse Spark" not in body
+
+
 def test_hypergeometric_baseline_matches_hand_calculation():
     from blindspot_ci.experiment.baseline import compare_to_random
 

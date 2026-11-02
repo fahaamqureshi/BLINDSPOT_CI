@@ -150,7 +150,7 @@ def _run_or_404(run_id: str) -> None:
 
 
 MODEL_ROLES = [
-    {"model": "Muse Spark 1.3", "role": "Agent: picks each test by function calling", "id": "muse-spark-1.3"},
+    {"model": "Muse Spark 1.3", "role": "Agent: picks each test by function calling when the Muse planner is used", "id": "muse-spark-1.3"},
     {"model": "SAM 3.1", "role": "Segments the photo: boxes and masks", "id": "sam-3.1"},
     {"model": "Muse Image", "role": "Makes labeled stress variants (low light, glare, blur)", "id": "muse-image-1.0"},
     {"model": "Muse Voice Transcribe", "role": "Turns a spoken reviewer note into text", "id": "muse-voice-transcribe-1.0"},
