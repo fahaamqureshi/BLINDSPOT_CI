@@ -49,6 +49,28 @@ Nov 1 for COCO.
   intervals overstate certainty because frames are correlated. MOT20 is CC BY-NC-SA 3.0 non-commercial data and
   is not stored in this repository. MOT20-02 and MOT20-05 were not run because their 76 and 86 MB uploads hung.
 
+## Live agent investigation
+
+Two small live runs let the Muse planner choose the test order with the human labels hidden. These runs are separate from the three results above. The agent explores and picks the next case. The fixed Release Gate decides, and it decides on the fixed saved runs, not on what the agent found interesting. Neither agent run produced the headline COCO or DAVIS results, and both headline runs used a scripted test order.
+
+- Run `e8830a46b8824796`, mode `LIVE_META`. Three Muse planner calls and three SAM 3.1 calls on a three case fire hydrant subset. Estimated cost 0.0165 US dollars. All three cases passed, with IoU 0.94, 0.98 and 0.94. The gate on that small run said NEEDS_REVIEW. No failure was found in that subset, so no agent found failure is claimed from it.
+- Run `a23089bef4a840c8`, mode `LIVE_META`. Six Muse `muse-spark-1.3` planner calls and six SAM `sam-3.1` calls, twelve budget calls in total. Estimated cost 0.033 US dollars against a hard task cap of 0.10 US dollars. The project total live estimate after this run was 0.531 US dollars of a 4 US dollar authorized cap. Costs here are BudgetGuard estimates, not billing receipts.
+
+The six cases in run `a23089bef4a840c8` were shipped COCO `low_light` and `small_object` cases with the labels hidden from the planner. Plain Python scored each answer at a bar of 0.35:
+
+| Case | Condition | Result | IoU |
+| --- | --- | --- | --- |
+| `cc_low_light_01` | low_light | FAIL_FALSE_NEGATIVE | 0.0 |
+| `cc_low_light_02` | low_light | FAIL_FALSE_NEGATIVE | 0.0 |
+| `cc_low_light_03` | low_light | PASS | 0.5789 |
+| `cc_low_light_04` | low_light | FAIL_FALSE_NEGATIVE | 0.0 |
+| `cc_small_object_02` | small_object | PASS | 0.9323 |
+| `cc_small_object_01` | small_object | PASS | 0.8333 |
+
+The planner reacted after each failure. After `cc_low_light_01` missed with IoU 0.0 it asked for an alternate view as extra evidence and saved the case as a regression case, then picked `cc_low_light_02` with a varied concept. After that miss it again asked for an alternate view and saved a regression case, then picked `cc_low_light_03`, which passed at 0.5789. It then picked `cc_low_light_04`, which missed at 0.0, asked for an alternate view and saved a regression case again, and expanded from `low_light` to the second hard condition with `cc_small_object_02`, which passed at 0.9323. The last pick was `cc_small_object_01`, which passed at 0.8333. For the six tested case ids the agent run outcomes matched the fixed run.
+
+The gate separation matters. The gate on this six case agent run said NEEDS_REVIEW, because six cases, four `low_light` and two `small_object`, are too few to decide a release and both slices are underpowered in this run. The fixed gate on run `a165cd6773cd433a` said NO_GO on its own counts, `low_light` 6 of 10 and `small_object` 19 of 24. The agent did not influence that gate. Read the two verdicts as two facts: a live planner can find real misses on hard cases, and only the fixed suite can say do not ship.
+
 ## Re-read the saved runs for free
 
 The COCO and DAVIS run files are committed in `fixtures/examples`. These commands make no model call.

@@ -8,6 +8,7 @@ Running time: about 5 minutes with questions, 90 seconds in the short form at th
 - Confirm the health route answers and the examples list loads. Both were verified in this audit; see `docs/TEST_RESULTS.md`.
 - Open two tabs: the app with the synthetic dataset, and the app with the saved COCO run (run id a165cd6773cd433a, dataset coco). Keep the DAVIS run id 8f6003378706480a ready to type.
 - Have the free gate commands ready in a terminal with BLINDSPOT_RUNS_DIR set to fixtures/examples. No key, no spend, no network is needed for any step below.
+- Have the live agent run record ready to show as text: run a23089bef4a840c8 in `docs/real-results.md`. That run needed a key and live flags, so it cannot be re-run for free in the room. Show the saved record, and say so out loud.
 
 ## Act 1. The inspection idea (45 seconds)
 
@@ -36,6 +37,14 @@ Say: Now the same pipeline on real photos that a person labeled. These answers a
 - Read the fix list from the gate panel: fix the failing low light and small object cases, collect more cases per condition, add a second annotator, and re-run on fresh photos.
 - In the terminal, run the free slice test and read one line: low light raw p 0.0087 becomes 0.0612 after Holm correction, so even this gap is not yet distinguishable from chance on its own. Say: the tool reports that against itself. Small samples stay labeled small.
 
+## Act 3b. The live agent investigation (45 seconds, live evidence shown as a saved record)
+
+Say: This is a separate live run, not the headline run you just saw. In run a23089bef4a840c8 the Muse planner chose the test order live with the labels hidden, on six shipped COCO low_light and small_object cases. Six Muse muse-spark-1.3 calls and six SAM sam-3.1 calls, estimated cost 0.033 US dollars against a hard cap of 0.10.
+
+- Read the three misses first: cc_low_light_01, cc_low_light_02 and cc_low_light_04 all scored IoU 0.0, a plain false negative with no box at all. Say: SAM genuinely missed these. Python scored them, not a model.
+- Read the planner reaction: after each miss it asked for an alternate view as extra evidence and saved the case as a regression case, then chose the next hard case, varying the concept and moving from low_light to small_object. The passes were cc_low_light_03 at 0.5789, cc_small_object_02 at 0.9323 and cc_small_object_01 at 0.8333.
+- Land the separation: the gate on this six case agent run said NEEDS_REVIEW, because six cases are too few to decide a release. The fixed gate on the saved COCO run said NO_GO, low light 6 of 10 and small objects 19 of 24. Say: the agent explores, the fixed gate decides. The agent did not produce the headline results, and the headline runs used a scripted order.
+
 ## Act 4. Video frames and the honesty checks (60 seconds, live evidence)
 
 - Open the saved DAVIS run. Verdict NEEDS_REVIEW, 111 of 112 frames passed. Say: that sounds strong, and the gate still refuses a pass, for two stated reasons. There is no absent case at all, and DAVIS may have been seen in SAM training. That overlap note is UNVERIFIED until the owner checks the SAM papers.
@@ -50,13 +59,14 @@ Say: What you saw is a release gate, not a new model. Labels from a person, labe
 
 1. Problem (10 seconds): a model can ace a bright demo and still miss dark or small objects.
 2. Fixture in one line (10 seconds): the tag drawings show the software running; badge says MOCK_FIXTURE, gate says DEMO_ONLY, nothing here grades SAM.
-3. Real verdict (30 seconds): COCO live run, NO_GO. Low light 6 of 10, small objects 19 of 24, normal 24 of 24. Show one failed photo with both boxes.
-4. Honesty (20 seconds): slice test weakens after correction, DAVIS is NEEDS_REVIEW with a training-overlap warning, samples are small and mostly single-labeler.
-5. Next (20 seconds): owner tray photos plus a second labeler, then a fresh live run. Until then GO_CANDIDATE stays out of reach.
+3. Real verdict (25 seconds): COCO live run, NO_GO. Low light 6 of 10, small objects 19 of 24, normal 24 of 24. Show one failed photo with both boxes.
+4. Live agent investigation (20 seconds): separate six case live run a23089bef4a840c8. The Muse planner chose hard low light cases with labels hidden, SAM missed cc_low_light_01, cc_low_light_02 and cc_low_light_04 at IoU 0.0, and after each miss the planner asked for an alternate view, saved a regression case and picked the next hard case. The gate on that small run said NEEDS_REVIEW, and the fixed gate said NO_GO. The agent explores, the fixed gate decides, and the headline runs used a scripted order.
+5. Honesty (15 seconds): slice test weakens after correction, DAVIS is NEEDS_REVIEW with a training-overlap warning, samples are small and mostly single-labeler.
+6. Next (10 seconds): owner tray photos plus a second labeler, then a fresh live run. Until then GO_CANDIDATE stays out of reach.
 
 ## Questions a judge may ask
 
-- Is the agent choosing these tests? The Muse Spark planner is implemented and validated, but the two saved headline runs used a scripted order. Say agent assisted, not fully autonomous, and offer the compare-agent result: no proven benefit over random yet.
+- Is the agent choosing these tests? In the two saved headline runs, no: they used a scripted order. In the separate six case live run a23089bef4a840c8, yes: the Muse planner chose hard low light and small object cases with labels hidden, found three IoU 0.0 misses, and reacted after each one. That run is NEEDS_REVIEW and underpowered, the fixed gate still decides, and there is no proven benefit over random order yet. Say agent assisted, not fully autonomous.
 - Can a model grade itself here? No. Python scores against hidden human boxes. Image, voice and Wonder output never changes a score.
 - What stops runaway spend? Budget reserved before each paid call, per-run and server-wide caps, call limits, and a cache keyed by input hash so re-reads are free.
 - Is any of this a safety approval? No. The gate advises a person with evidence. GO_CANDIDATE itself says a person still decides.
