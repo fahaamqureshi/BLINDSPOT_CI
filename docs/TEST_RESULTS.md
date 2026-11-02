@@ -156,6 +156,8 @@ Result: only the synthetic dataset loads in this checkout (5 cases, every core c
 
 CI run 41536778372 for head 65cdb9dc36082bce3a036bb5d257d5e7ebdf7948 on main: completed with conclusion success. Both jobs passed: test (3.11) and test (3.13). Run page: https://github.com/fahaamqureshi/BLINDSPOT_CI/actions/runs/41536778372
 
+The docs fixes from this closeout (the 331 count correction and this file pair) then landed on main as 10be6a251806ed856e1bf0d41ae009fbf30b6edc, a docs-only child of the verified head with no code change. CI run 41538664651 for that head also completed with conclusion success, both jobs passed. Run page: https://github.com/fahaamqureshi/BLINDSPOT_CI/actions/runs/41538664651 - the final main head and its CI link are confirmed again in the closeout delivery report, because this sentence itself ships in a follow-on docs commit.
+
 ## Live records read, not re-run
 
 No live call was made in this closeout. The following are taken from docs/real-results.md and the committed run files, and they were cross-checked against the gate re-reads above where a saved run exists.
