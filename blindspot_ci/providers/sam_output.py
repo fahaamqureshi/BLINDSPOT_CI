@@ -34,6 +34,8 @@ def _mask_metadata(record: Any, notes: list[str]) -> dict[str, Any]:
         "encoding": mask.encoding, "width": mask.width, "height": mask.height,
         "bounds_xyxy": [bounds.left, bounds.top, bounds.right, bounds.bottom],
     }
+    if mask.width != bounds.right - bounds.left or mask.height != bounds.bottom - bounds.top:
+        notes.append("warning:mask_size_differs_from_bounds")
     try:
         info["svg_path"] = decode_mask_to_svg_path(mask)
     except (InvalidSegmentationMaskError, RuntimeError) as exc:  # keep the box, note the lost mask
@@ -51,26 +53,40 @@ def parse_sam_output(text: str, probe: str, source: str) -> tuple[list[Detection
     """
     if not PARSER_AVAILABLE:
         return [], PARSER_UNAVAILABLE, ["meta-sam-parser is not installed"]
-    parser = image_segmentation_format().create_parser()
-    parser.push(text)
-    result = parser.finish(CompletedOutcome()).result
-    masks: dict[str, Any] = {r.object_id: r for r in result.records if r.kind == "mask"}
+    if not isinstance(text, str):
+        return [], PARSED_WITH_ERRORS, ["error:parser_input_not_text"]
+    try:
+        parser = image_segmentation_format().create_parser()
+        parser.push(text)
+        result = parser.finish(CompletedOutcome()).result
+    except Exception as exc:  # noqa: BLE001 - a parser failure is flagged for review, never read as a no-match
+        return [], PARSED_WITH_ERRORS, [f"error:parser_failed:{type(exc).__name__}"]
     detections: list[Detection] = []
+    unmatched: dict[str, list[Detection]] = {}  # object_id -> boxes still waiting for their mask
     notes_out: list[str] = []
     text_lines = 0
-    for record in result.records:
+    for record in result.records:  # wire order is box then mask, so pair in that order
         if record.kind == "text":
             text_lines += 1
         elif record.kind == "box":
-            meta: dict[str, Any] = {
+            detection = Detection(label=probe, confidence=record.confidence, source=source, metadata={
                 "object_id": record.object_id,
                 "box_xyxy": [record.left, record.top, record.right, record.bottom],
-            }
-            mask_record = masks.get(record.object_id)
-            if mask_record is not None:
-                meta["mask"] = _mask_metadata(mask_record, notes_out)
-            detections.append(Detection(label=probe, confidence=record.confidence, source=source,
-                                        metadata=meta))
+            })
+            detections.append(detection)
+            unmatched.setdefault(record.object_id, []).append(detection)
+        elif record.kind == "mask":
+            waiting = unmatched.get(record.object_id) or []
+            if not waiting:
+                notes_out.append(f"warning:mask_without_box:{record.object_id}")
+                continue
+            detection = waiting.pop(0)
+            detection.metadata["mask"] = _mask_metadata(record, notes_out)
+            bounds = record.bounds
+            if [bounds.left, bounds.top, bounds.right, bounds.bottom] != detection.metadata["box_xyxy"]:
+                notes_out.append(f"warning:mask_bounds_differ_from_box:{record.object_id}")
+    for object_id, waiting in unmatched.items():
+        notes_out.extend(f"warning:box_without_mask:{object_id}" for _ in waiting)
     notes = [f"{d.severity}:{d.code}" for d in result.diagnostics] + notes_out
     if any(d.severity == "error" for d in result.diagnostics):
         return detections, PARSED_WITH_ERRORS, notes

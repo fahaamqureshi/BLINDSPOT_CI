@@ -77,6 +77,8 @@ def build_video_request(prompts: list[VideoBoxPrompt], *, frame_width: int, fram
         raise ValueError("frame_width and frame_height must be positive")
     ids: dict[str, int] = {}
     for p in prompts:
+        if not p.label or not p.label.strip():
+            raise ValueError("every box prompt needs a label")
         ids.setdefault(p.label, len(ids) + 1)
     if len(ids) > MAX_PROMPTED_OBJECTS:
         raise ValueError(f"at most {MAX_PROMPTED_OBJECTS} objects can be prompted, got {len(ids)}")
@@ -148,8 +150,13 @@ def _parse_record(chunk: str) -> dict[str, Any] | None:
         return None
     if x1 > x2 or y1 > y2:
         return None
-    if frame_size is not None and (frame_size[0] < 1 or frame_size[1] < 1):
+    if conf is not None and not (0.0 <= conf <= 1.0):
         return None
+    if frame_size is not None:
+        if frame_size[0] < 1 or frame_size[1] < 1:
+            return None
+        if not (0 <= x1 <= x2 < frame_size[0] and 0 <= y1 <= y2 < frame_size[1]):
+            return None  # a box outside its declared frame cannot align with an overlay
     record = {"object_id": int(m.group(1)), "box_xyxy_pixels": [x1, y1, x2, y2], "confidence": conf}
     if frame_size is not None:
         record["frame_size"] = frame_size
@@ -198,10 +205,16 @@ def parse_video_text(text: str) -> VideoParse:
 
 
 def parse_video_stream(lines) -> VideoParse:
-    """Parse server-sent event lines. Each output_text delta is parsed as its own frame line."""
-    out, seen = VideoParse(), set()
+    """Parse server-sent event lines, buffering text across event boundaries.
+
+    The client-library contract says chunk boundaries do not matter: a frame line may be
+    split across deltas, so deltas are joined first and only the joined text is parsed.
+    """
+    out = VideoParse()
+    parts: list[str] = []
+    done_text = ""
     for raw in lines:
-        if not raw.startswith("data:"):
+        if not isinstance(raw, str) or not raw.startswith("data:"):
             continue
         data = raw[5:].strip()
         if not data or data == "[DONE]":
@@ -211,17 +224,28 @@ def parse_video_stream(lines) -> VideoParse:
         except json.JSONDecodeError:
             out.malformed += 1
             continue
-        kind = event.get("type", "") if isinstance(event, dict) else ""
+        if not isinstance(event, dict):
+            out.malformed += 1
+            continue
+        kind = event.get("type", "")
         if kind == "response.output_text.delta":
-            for line in str(event.get("delta", "")).splitlines():
-                for piece in _FRAME_SPLIT.split(line):
-                    _parse_line(piece, out, seen)
+            if isinstance(event.get("delta"), str):
+                parts.append(event["delta"])
+        elif kind == "response.output_text.done" and isinstance(event.get("text"), str):
+            done_text = event["text"]
+        elif kind == "response.content_part.done" and isinstance(event.get("part"), dict) \
+                and event["part"].get("type") == "output_text" and isinstance(event["part"].get("text"), str):
+            done_text = event["part"]["text"]
         elif kind == "response.completed":
             out.completed = True
-            out.usage = (event.get("response") or {}).get("usage") or {}
+            response_obj = event.get("response") if isinstance(event.get("response"), dict) else {}
+            out.usage = response_obj.get("usage") or {}
         elif kind in {"response.failed", "error"}:
             detail = event.get("response", {}).get("error") if isinstance(event.get("response"), dict) else None
             out.error = json.dumps(detail or event.get("error") or event)[:300]
+    parsed = parse_video_text("".join(parts) or done_text)
+    out.frames, out.duplicate_frames, out.out_of_order = parsed.frames, parsed.duplicate_frames, parsed.out_of_order
+    out.malformed += parsed.malformed
     out.truncated = not out.completed
     return out
 
@@ -301,6 +325,7 @@ class MetaSam31VideoAdapter(_MetaBase):
         except httpx.HTTPError as exc:
             raise MetaApiError(f"Meta API video request failed (not retried): {self._describe(exc)}") from exc
         if parsed.error:
-            parsed.error = parsed.error.replace(self.api_key, "[redacted]")
+            detail = parsed.error.replace(self.api_key, "[redacted]")
+            raise MetaApiError(f"Meta API video stream failed (not retried): {detail}")
         billed = parsed.usage.get("video_frames_processed")
         return VideoResult(parsed, request.id_to_label, reserved, billed if isinstance(billed, int) else None)

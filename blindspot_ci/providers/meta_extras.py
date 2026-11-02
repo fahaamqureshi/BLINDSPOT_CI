@@ -6,9 +6,11 @@ reviewer note into text, Wonder writes a plain-language audit. Python scoring st
 from __future__ import annotations
 
 import base64
+import io
 import json
 import random
 import time
+import wave
 from typing import Any
 
 import httpx
@@ -32,14 +34,26 @@ class MuseImageAdapter(_MetaBase):
         super().__init__(api_key, base_url, **kwargs)
 
     def edit(self, image_bytes: bytes, mime: str, prompt: str) -> bytes:
+        if not image_bytes:
+            raise ValueError("Muse Image edit needs a non-empty source image")
+        if mime not in {"image/png", "image/jpeg", "image/webp"}:
+            raise ValueError("Muse Image edit needs a png, jpeg or webp source image")
+        if not prompt or not prompt.strip():
+            raise ValueError("Muse Image edit needs a prompt")
         payload = {"model": self.model, "prompt": prompt, "n": 1, "response_format": "b64_json",
                    "output_format": "png",
                    "images": [{"image_url": f"data:{mime};base64,{base64.b64encode(image_bytes).decode()}"}]}
         data = self._post(payload, path="/images/edits")
         try:
-            return base64.b64decode(data["data"][0]["b64_json"])
+            encoded = data["data"][0]["b64_json"]
+            if not isinstance(encoded, str) or not encoded:
+                raise TypeError("image payload was not base64 text")
+            decoded = base64.b64decode(encoded, validate=True)
         except (KeyError, IndexError, TypeError, ValueError) as exc:
             raise MetaApiError("Muse Image reply had no image") from exc
+        if not decoded:
+            raise MetaApiError("Muse Image reply had no image")
+        return decoded
 
 
 class MuseVoiceAdapter(_MetaBase):
@@ -49,9 +63,17 @@ class MuseVoiceAdapter(_MetaBase):
 
     @staticmethod
     def check_wav(wav: bytes) -> None:
+        """Refuse audio the endpoint would reject, before any paid call is made."""
         if len(wav) > MAX_WAV_BYTES:
             raise ValueError("audio is over 32 MB")
-        if wav[:4] != b"RIFF" or wav[8:12] != b"WAVE":
+        try:
+            with wave.open(io.BytesIO(wav)) as handle:
+                valid = (handle.getnchannels() == 1 and handle.getsampwidth() == 2
+                         and handle.getframerate() in {16000, 24000}
+                         and handle.getcomptype() == "NONE")
+        except (wave.Error, EOFError, OSError) as exc:
+            raise ValueError("audio must be a WAV file (mono PCM, 16 kHz or 24 kHz)") from exc
+        if not valid:
             raise ValueError("audio must be a WAV file (mono PCM, 16 kHz or 24 kHz)")
 
     def transcribe(self, wav: bytes, keywords: list[str] | None = None) -> str:
@@ -70,7 +92,14 @@ class MuseVoiceAdapter(_MetaBase):
                     time.sleep(min(0.5 * (2**attempt) + random.random() * 0.2, 5.0))
                     continue
                 response.raise_for_status()
-                return str(response.json().get("transcript", "")).strip()
+                try:
+                    payload = response.json()
+                except ValueError as exc:
+                    raise MetaApiError("Muse Voice reply was not valid JSON") from exc
+                transcript = payload.get("transcript") if isinstance(payload, dict) else None
+                if not isinstance(transcript, str) or not transcript.strip():
+                    raise MetaApiError("Muse Voice reply had no transcript")
+                return transcript.strip()
             except httpx.HTTPError as exc:
                 if self._not_retryable(exc):
                     raise MetaApiError(f"Meta API request failed: {self._describe(exc)}") from exc

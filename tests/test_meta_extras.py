@@ -31,7 +31,15 @@ def png_bytes(size=(40, 30)):
 
 
 def wav_bytes():
-    return b"RIFF" + b"\x00" * 4 + b"WAVE" + b"\x00" * 40
+    import wave
+
+    out = io.BytesIO()
+    with wave.open(out, "wb") as handle:
+        handle.setnchannels(1)
+        handle.setsampwidth(2)
+        handle.setframerate(16000)
+        handle.writeframes(b"\x00\x00" * 160)
+    return out.getvalue()
 
 
 def fake_post(monkeypatch, body, status=200, seen=None):
