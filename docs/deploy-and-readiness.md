@@ -82,4 +82,4 @@ Fixed:
   a live run. The mock key already follows the scripted fixtures.
 - Run files, cache files and the provenance log grow without limit. Clear `artifacts` and
   `.blindspot-cache` when you want space back.
-- The Docker image and the CI workflow have not been run.
+- The Docker image has not been built or run yet. Docker is not installed here and CI does not build it. CI runs ruff and pytest on every push and pull request and is green on main.

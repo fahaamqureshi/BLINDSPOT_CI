@@ -183,6 +183,7 @@ If a call fails, run `python -m blindspot_ci.cli diagnose`.
 | `BLINDSPOT_BUDGET_USD` | `5.00` | spend cap per run |
 | `BLINDSPOT_RUNS_DIR` | `artifacts/runs` | where reports are saved |
 | `BLINDSPOT_HOST`, `BLINDSPOT_PORT` | `127.0.0.1`, `8000` | server address; non-loopback is refused when live is enabled |
+| `BLINDSPOT_ALLOWED_HOSTS` | empty | extra host names the server will answer; loopback is always allowed |
 | `MODEL_API_KEY` | empty | Meta key, local only |
 | `META_BASE_URL` | `https://api.meta.ai/v1` | API base URL |
 | `META_TEXT_MODEL`, `META_SAM_MODEL` | `muse-spark-1.3`, `sam-3.1` | model ids |
@@ -195,7 +196,7 @@ GET  /health                    liveness and provider name
 GET  /api/info                  mode, dataset, planner and limits
 GET  /api/cases                 test inventory without labels
 GET  /api/cases/{id}/image      the photo for one case
-POST /api/experiment            {"max_steps": 5}; 403 unless live is enabled
+POST /api/experiment            {"max_steps": 5}; mock by default; 403 when a live provider or planner is set without LIVE_API_ENABLED
 GET  /api/runs/{id}             a saved report with notes and audit
 GET  /api/runs/{id}/release-gate release-gate decision and checks for a saved run
 POST /api/runs/{id}/notes       typed reviewer note
@@ -227,6 +228,7 @@ The image runs as a non-root user on the mock provider. Pass a key only for a lo
 - `docs/release-gate.md`: the release gate decisions, checks, policy and exit codes
 - `docs/gap-analysis.md`: what is missing against what standards and strong teams ask for
 - `docs/deploy-and-readiness.md`: run and deploy notes, review findings, open items
+- `docs/free-deployment.md`: free public deployment of the mock demo, with owner account steps
 - `docs/research-and-standards.md`: sources behind the design
 - `docs/design.md`: design rules and known limits
 - `docs/demo-and-submission.md`: demo script and submission checklist
