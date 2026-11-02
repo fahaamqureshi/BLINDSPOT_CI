@@ -62,8 +62,9 @@ python -m blindspot_ci.cli release-gate --run 8f6003378706480a
 ```
 
 The long video run files are kept locally in `artifacts/runs` and are not committed, because the data is
-non-commercial. After rebuilding (see below), read the run with its new id. A replay can also write to a
-scratch folder through `BLINDSPOT_RUNS_DIR`:
+non-commercial. From the shipped fixtures alone the long video verdict cannot be re-run, because
+neither the manifest nor the raw stream is in this repository. After rebuilding (see below), read
+the run with its new id. A replay can also write to a scratch folder through `BLINDSPOT_RUNS_DIR`:
 
 ```powershell
 Remove-Item Env:BLINDSPOT_RUNS_DIR

@@ -71,7 +71,10 @@ same thing by hand.
 3. Draw the box around the tag only. Use `visible`, `absent` or `unknown` for the visibility.
 4. Label before you ever run the model. Never copy a box from SAM or Muse. That would be the model
    grading itself.
-5. If you can, ask a second person to check some labels and write their name in `reviewer`.
+5. If you can, ask a second person to label some of the same photos on their own, without seeing
+   your boxes first. Put their name as annotator in their own file and as `reviewer` in yours where
+   they checked a label. A name in `reviewer` alone does not give the release gate an agreement
+   score. To get that score, save the two files and compare them as below.
 
 ## Import
 
@@ -85,6 +88,16 @@ The importer applies the phone's rotation flag, shrinks photos to at most 1600 p
 side (boxes scale with them), checks every box, and records a SHA-256 hash of each stored image. The
 loader refuses a photo that changed after labeling. Results go to `datasets/real/` and
 `datasets/real_manifest.json`. Both are git-ignored and never added to the submission ZIP.
+
+Replace every placeholder value in the template copy before you import, including the example
+photo path, the annotator name and the box. The importer stops on the first photo it cannot find.
+
+For second annotator coverage, keep the first and second label files and run the compare command.
+The JSON it prints is the agreement file the release gate reads.
+
+```powershell
+python -m blindspot_ci.cli compare-labels my-labels.json second-labels.json
+```
 
 ## Run it
 
