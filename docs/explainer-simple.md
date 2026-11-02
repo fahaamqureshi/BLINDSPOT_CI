@@ -147,7 +147,7 @@ plan, under a 4.00 US dollar cap set for that test. Reading any saved run
 again costs nothing and makes no model calls. The price is a plan price from
 the dry run, not a provider bill, and the project notes say so.
 
-The code behind this is checked hard. There are 273 automated tests. The
+The code behind this is checked hard. There are 331 automated tests. The
 project gate is `python scripts/check.py`, and it prints Summary: PASS when
 the code checks, the tests, the document style checks, and the secret checks
 all pass. GitHub runs the same tests on Python 3.11 and Python 3.13 on every
@@ -252,7 +252,7 @@ with evidence, whether a vision model is ready to ship.
 | Muse Spark planner that picks tests by function calling | Built, with a limit | It works, but the saved COCO and DAVIS runs used a scripted test order. This is agent assisted, not fully on its own. |
 | Harder photo copies, spoken notes, and the plain words audit | Built, as helpers | They help people test and review. None of them can change a score. |
 | Three real measured runs on photos and video | Done | COCO photos NO_GO, DAVIS frames NEEDS_REVIEW, and the long crowd video NO_GO. |
-| 273 automated tests, the `scripts/check.py` gate, and GitHub checks on Python 3.11 and 3.13 | Done and green | The gate prints Summary: PASS and CI is green on main. |
+| 331 automated tests, the `scripts/check.py` gate, and GitHub checks on Python 3.11 and 3.13 | Done and green | The gate prints Summary: PASS and CI is green on main. |
 | Free public demo guide for Northflank in `docs/free-deployment.md` | Written down, owner step left | The guide deploys only the scripted mock demo with no key. The owner still has to connect the account, so this is documented and ready to follow, not a hosted live service. |
 | Own photos taken after the model release, such as the factory tray tag | Not done yet | No such photos exist yet. The planned tray tag case has no photos at all. |
 | A second person labeling the same cases | Not done yet | Most labels come from one person, so label mistakes are harder to catch. |
@@ -294,7 +294,7 @@ first, SAM 3.1 tries to find each object, and plain Python marks the answers,
 so no model grades itself. On real photos the gate said do not ship yet,
 because low light found only 6 of 10 objects. On a long crowd video it
 followed only 3 of 16 people well. It is a release gate for engineers, with
-273 automated tests behind it, not a new model.
+331 automated tests behind it, not a new model.
 
 ## Where to check every number
 
@@ -308,4 +308,4 @@ followed only 3 of 16 people well. It is a release gate for engineers, with
 - `docs/free-deployment.md` gives the free Northflank demo steps and the
   owner actions they still need.
 - `scripts/check.py` is the project gate. It passes only when the code checks,
-  all 273 tests, the document style checks, and the secret checks pass.
+  all 331 tests, the document style checks, and the secret checks pass.
