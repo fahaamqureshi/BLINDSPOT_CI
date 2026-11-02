@@ -55,9 +55,11 @@ The mock mode needs no GPU, key or network and costs nothing.
 py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e ".[dev]"
-python -m pytest
+python scripts/check.py
 python -m blindspot_ci.cli serve
 ```
+
+The project gate uses a private temporary folder and prints `Summary: PASS`; if plain pytest reports a temporary folder permission error, run it with `--basetemp` pointing to a folder you own.
 
 Open http://127.0.0.1:8000. The home page shows a saved real result, `/guide` explains how it works, and `/app`
 is the full result page and tool. The offline provider is a deterministic mock and the page banner says so.
