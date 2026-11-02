@@ -53,7 +53,7 @@ official Rules. Source: https://madrobot.blog/2026/10/03/meta-global-ai-develope
 - Find a second annotator.
 - Choose the track, Indie or Startup.
 - Read the official Rules.
-- Fix GitHub billing so CI can run.
+- Keep GitHub CI green on the final main commit before submitting. CI runs on every push.
 - Check the COCO photo licence before showing COCO photos publicly.
 
 ## Reference facts
