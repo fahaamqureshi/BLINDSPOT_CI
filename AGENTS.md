@@ -18,6 +18,12 @@ python -m pytest --basetemp="$pytestTemp" -p no:cacheprovider
 
 Use mock mode only. The final gate before reporting is `python scripts/check.py`.
 
+For audit servers set DOTENV_DISABLED=1, BLINDSPOT_PROVIDER=mock,
+BLINDSPOT_PLANNER=heuristic and LIVE_API_ENABLED=false before starting Python.
+Run `python scripts/audit_mock.py` to check HTTP, cache, export and process restart
+without touching private datasets. Keep its artifacts local. New reports record
+configured_case_ids; a planner-selected subset is not a complete release suite.
+
 ## Layout
 
 `blindspot_ci/` package: providers, experiment loop, scoring, API, and web UI.

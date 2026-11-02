@@ -69,7 +69,7 @@ def score_case(case: InspectionCase, boxes: list[Box], min_iou: float = DEFAULT_
     if not boxes:
         return CaseOutcome(case.id, FALSE_NEGATIVE, True, 0.0, "Labeled visible but the model found nothing.")
     assert case.ground_truth_box is not None
-    best = round(max(box_iou(box, case.ground_truth_box) for box in boxes), 4)
+    best = max(box_iou(box, case.ground_truth_box) for box in boxes)
     if best < min_iou:
         return CaseOutcome(case.id, LOCALIZATION, True, best,
                            f"Best box overlap {best:.2f} is below the {min_iou:.2f} threshold.")

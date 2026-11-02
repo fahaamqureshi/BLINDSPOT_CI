@@ -49,6 +49,16 @@ def test_go_candidate_and_human_review_sentence(fresh):
     assert "Human review is mandatory" in rg.render(_decide(_run(STRONG, dataset=FRESH), None), "markdown")
 
 
+def test_partial_or_duplicate_fixed_suite_cannot_pass(fresh):
+    run = _run(STRONG, dataset=FRESH)
+    run["configured_case_ids"] = [s["case"]["id"] for s in run["steps"]] + ["omitted"]
+    assert _decide(run)["decision"] == rg.NEEDS_REVIEW
+    run["configured_case_ids"].remove("omitted")
+    assert _decide(run)["decision"] == rg.GO_CANDIDATE
+    run["steps"].append(run["steps"][0])
+    assert _decide(run)["decision"] == rg.NEEDS_REVIEW
+
+
 def test_six_of_ten_low_light_is_no_go():
     plan = {**STRONG, "low_light": (6, 4, 0)}
     report = _decide(_run(plan))

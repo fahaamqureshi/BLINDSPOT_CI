@@ -35,6 +35,17 @@ def test_import_writes_manifest_with_hashes_and_loads(tmp_path):
     assert len(manifest["cases"][0]["image_sha256"]) == 64
 
 
+def test_import_preserves_source_attribution_and_license(tmp_path):
+    datasets = tmp_path / "datasets"
+    item = entry(photo(tmp_path / "photo.jpg"))
+    provenance = {"source_url": "https://example.invalid/photo", "license": "CC BY 4.0",
+                  "attribution": "Human photographer"}
+    item.update(provenance)
+    import_labeled(labels(tmp_path, [item]), datasets)
+    saved = json.loads((datasets / "real_manifest.json").read_text())["cases"][0]
+    assert {key: saved[key] for key in provenance} == provenance
+
+
 def test_large_photo_is_resized_and_box_scaled(tmp_path):
     datasets = tmp_path / "datasets"
     datasets.mkdir()

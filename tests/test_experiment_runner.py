@@ -144,6 +144,8 @@ def test_muse_finish_ends_the_run():
 
 
 @pytest.mark.parametrize("reply", [
+    tool_call("choose_next_test", []),
+    tool_call("choose_next_test", None),
     tool_call("choose_next_test", {"case_id": "ghost", "reason": "x"}),
     tool_call("delete_everything", {}),
     {"role": "assistant", "content": "I would pick a"},

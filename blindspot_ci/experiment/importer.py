@@ -140,6 +140,7 @@ def import_labeled(labels_json: Path, datasets: Path = DATASETS, force: bool = F
             "note": item.get("note", ""), "label_provenance": item["label_provenance"],
             "image_sha256": sha256_file(target), "source_sha256": sha256_file(photo),
             "stored_size": list(image.size), "original_size": list(original),
+            **{key: item[key] for key in ("source_url", "license", "attribution") if key in item},
         })
     atomic_write_text(manifest_path, json.dumps({
         "dataset_id": KINDS[name][0], "type": KINDS[name][1], "annotation_status": KINDS[name][2],

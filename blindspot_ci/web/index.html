@@ -23,7 +23,7 @@
  <h2 id="why-h">Why</h2>
  <p class="small" id="why-intro"></p>
  <table class="kinds"><caption class="vis">Result for each required kind of photo</caption>
-  <thead><tr><th scope="col">Kind of photo</th><th scope="col">Found</th><th scope="col">Against the bar</th><th scope="col">Result</th></tr></thead>
+  <thead><tr><th scope="col">Kind of photo</th><th scope="col">Passed</th><th scope="col">Against the bar</th><th scope="col">Result</th></tr></thead>
   <tbody id="why-rows"></tbody></table>
 </section>
 
@@ -152,7 +152,7 @@ function classify(k,c,p){
   const rate=c.passed/n;
   if(rate<bar){
     if(n>=p.min_judged_cases)return{cls:'bad',word:'Missed the bar',note:n<need?`And only ${n} photos, we want ${need}.`:''};
-    return{cls:'warn',word:'Too few photos',note:`${c.passed} of ${n} is under the bar, but with only ${n} photos we cannot call it a miss yet. We want ${need}.`}}
+    return{cls:'warn',word:'Too few photos',note:`${c.passed} of ${n} passed. The failed cases remain failures, but this sample is too small for a release decision. We want ${need}.`}}
   if(n<need)return{cls:'ok',word:'OK',note:`But only ${n} photos, we want ${need}.`};
   const lo=c.pass_ci95&&c.pass_ci95[0];
   if(lo!==undefined&&lo<bar)return{cls:'ok',word:'OK',note:`But the true rate could be as low as ${pct(lo)}.`};
@@ -163,9 +163,9 @@ function renderWhy(run,gate){
   $('why-intro').textContent=`Each row is one kind of photo. The line on each bar is our bar: ${barText(p.min_pass_rate)}. We want at least ${p.min_cases_per_condition} photos of each kind. Other kinds in this run are under All tests.`;
   for(const k of p.required_conditions){
     const c=Object.assign({},gate.conditions[k]||{},bc[k]||{}),n=c.scored||0,r=n?c.passed/n:0,cl=classify(k,c,p);
-    const found=h('td',{'data-l':'Found'},n?`${c.passed} of ${n}`:'0 of 0');
+    const found=h('td',{'data-l':'Passed'},n?`${c.passed} of ${n}`:'0 of 0');
     const bar=h('div',{class:'bar'+(cl.cls==='bad'?' miss':''),'aria-hidden':'true'},h('span',{style:`width:${Math.round(r*100)}%`}),h('i',{style:`left:${Math.round(p.min_pass_rate*100)}%`}));
-    const tx=h('span',{class:'barnum'},n?`${pct(r)} found, bar ${pct(p.min_pass_rate)}`:`bar ${pct(p.min_pass_rate)}`);
+    const tx=h('span',{class:'barnum'},n?`${pct(r)} passed, bar ${pct(p.min_pass_rate)}`:`bar ${pct(p.min_pass_rate)}`);
     const tds=[h('th',{scope:'row'},kind(k).replace(/^./,m=>m.toUpperCase())),found,h('td',{},bar,tx),
       h('td',{},h('span',{class:'word '+cl.cls},cl.word),...(cl.note?[h('span',{class:'knote'},cl.note)]:[]),...(k==='absent'?[h('span',{class:'knote'},'Here the right answer is to find nothing.')]:[]))];
     rows.push(h('tr',{},...tds))}

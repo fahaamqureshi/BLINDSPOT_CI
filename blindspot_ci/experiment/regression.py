@@ -22,6 +22,27 @@ def sign_test_p(worse: int, better: int) -> float:
 
 
 def compare_runs(baseline: dict[str, Any], candidate: dict[str, Any], alpha: float = 0.05) -> dict[str, Any]:
+    for field in ("min_iou", "dataset"):
+        if baseline.get(field) != candidate.get(field):
+            raise ValueError(f"incompatible runs: {field} differs")
+    first = {s["case"]["id"]: s for s in baseline["steps"]}
+    second = {s["case"]["id"]: s for s in candidate["steps"]}
+    for run, indexed in ((baseline, first), (candidate, second)):
+        if len(indexed) != len(run["steps"]):
+            raise ValueError("incompatible runs: duplicate case ids")
+    for case_id in first.keys() & second.keys():
+        a, b = first[case_id], second[case_id]
+        for field in ("image_sha256", "ground_truth"):
+            if a.get(field) != b.get(field):
+                raise ValueError(f"incompatible runs: {case_id} {field} differs")
+        if a["case"].get("concept") != b["case"].get("concept"):
+            raise ValueError(f"incompatible runs: {case_id} concept differs")
+    # Legacy reports without provenance can be inspected, but cannot support a verdict.
+    verified = all(
+        run.get("min_iou") is not None and all(
+            s.get("image_sha256") and s.get("ground_truth") and s["case"].get("concept")
+            for s in indexed.values())
+        for run, indexed in ((baseline, first), (candidate, second)))
     def status(run: dict[str, Any]) -> dict[str, str]:
         return {s["case"]["id"]: s["outcome"]["status"] for s in run["steps"]}
 
@@ -37,7 +58,9 @@ def compare_runs(baseline: dict[str, Any], candidate: dict[str, Any], alpha: flo
         "cases_compared": len(shared), "baseline_passed": sum(before[c] == "PASS" for c in shared),
         "candidate_passed": sum(after[c] == "PASS" for c in shared),
         "regressions": regressions, "fixes": fixes, "p_value": round(p, 4),
-        "verdict": "FAIL: significant regression" if significant else
+        "comparison_verified": verified,
+        "verdict": "UNVERIFIED: comparison provenance is incomplete" if not verified else
+                   "FAIL: significant regression" if significant else
                    ("WARN: some cases regressed" if regressions else "OK: no regression"),
         "note": "Only cases scored in both runs are paired. Small samples rarely reach significance, so read the case lists.",
     }

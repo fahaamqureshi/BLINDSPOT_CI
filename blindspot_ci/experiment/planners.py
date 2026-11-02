@@ -139,6 +139,9 @@ class MuseToolPlanner(_MetaBase):
         except (KeyError, TypeError, json.JSONDecodeError) as exc:
             self._reject(call, "arguments were not valid JSON")
             raise PlannerError("Muse tool arguments were not valid JSON") from exc
+        if not isinstance(args, dict):
+            self._reject(call, "arguments must be a JSON object")
+            raise PlannerError("Muse tool arguments must be a JSON object")
         reason = str(args.get("reason", ""))[:320]
         if fn == "finish_testing":
             self._tool_message(call["id"], "Stopping. The server writes the report.")

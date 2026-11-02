@@ -108,6 +108,7 @@ class ExperimentRunner:
             "dataset": {"id": self.dataset.id, "type": self.dataset.kind,
                         "annotation_status": self.dataset.annotation_status},
             "min_iou": self.min_iou, "steps": steps, "errors": errors,
+            "configured_case_ids": sorted(cases),
             "summary": summarize(outcomes, {cid: c.condition for cid, c in cases.items()}, self.min_iou),
             "calls": self.budget.calls, "estimated_cost_usd": round(self.budget.cost_usd, 6),
         }

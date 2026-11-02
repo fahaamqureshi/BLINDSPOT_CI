@@ -1,5 +1,26 @@
 # Submission checklist
 
+## Final audit update, 2026-11-03
+
+The [official Meta page](https://dev.meta.ai/events/global-hackathon) confirms November 4, 2026 at 9:00 PM ET, which is November 5 at 7:00 AM in Karachi. The [organizer page](https://cerebralvalley.ai/e/meta-ai-developer-hackathon) agrees. Private participant rules and the submission form were inaccessible in this audit; the public waiver returned Loading. Application fields are not submission requirements.
+
+| Requirement or artifact | State | Remaining action |
+| --- | --- | --- |
+| Public deadline | VERIFIED | Recheck participant portal for changes |
+| Indie priorities | VERIFIED | Creativity, technical ambition and functionality |
+| Push the Frontier description | VERIFIED | Fits manufacturing reliability; registered theme unknown |
+| Eligibility, acceptance, registered track/theme | UNVERIFIED | Owner must check accepted-participant account |
+| Required models and usage minimum | UNVERIFIED | Read official rules |
+| Title, description and team fields | UNVERIFIED | Read actual form constraints |
+| Source delivery and repository visibility | UNVERIFIED | Confirm public/private requirement |
+| Video length, format, demo URL, screenshots | UNVERIFIED | Confirm rules; no hosted demo verified |
+| Disclosure and third-party asset terms | UNVERIFIED | Check rules and redistribution rights |
+| Code, README, license and mock demonstration | PREPARED | Local validation only |
+| Final audit documents | PREPARED | See FINAL_AUDIT.md and FINAL_VERDICT.md |
+| Submission receipt | MISSING | Nothing submitted |
+
+Suggested evidence: creativity is separating exploratory tests from deterministic scoring; ambition is bounded tools and segmentation parsing; functionality is the mock failure, follow-up, unknown handling, export and restart. Live decisions need verification before inclusion. Public sources do not establish the account's selected track or judging weights.
+
 This file merges the owner checklist from docs/demo-and-submission.md with the artifact checks from the closeout verification, without duplicating the demo wording (the demo lives in docs/DEMO_SCRIPT.md). Items marked UNVERIFIED have not been checked against the official Rules. Deadline on the event page: Nov 4 2026, 9:00 PM ET. Submit by 8:00 PM ET and re-open the link to confirm.
 
 Closeout verification: 2026-11-03 on origin main 65cdb9dc36082bce3a036bb5d257d5e7ebdf7948, fresh clone in mock mode, no live call made. Full commands and outputs are in docs/TEST_RESULTS.md.

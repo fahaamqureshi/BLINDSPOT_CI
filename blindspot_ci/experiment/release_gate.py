@@ -151,6 +151,14 @@ def evaluate(run: dict[str, Any], policy: dict[str, Any], agreement: dict[str, A
     checks: list[dict[str, Any]] = []
     no_go: list[str] = []
     review = False
+    configured = run.get("configured_case_ids")
+    if configured is not None:
+        tested = [(s.get("case") or {}).get("id") for s in steps]
+        complete = set(tested) == set(configured) and len(tested) == len(set(tested))
+        review |= not complete
+        checks.append(_check("fixed suite coverage", "PASS" if complete else "FAIL",
+                             f"{len(set(tested) & set(configured))}/{len(configured)} configured cases tested",
+                             "run every configured case once before considering release" if not complete else None))
     for cond in sorted(policy["required_conditions"]):
         passed, scored = counts[cond]["passed"], counts[cond]["scored"]
         ci = wilson_interval(passed, scored)

@@ -143,7 +143,10 @@ def test_regression_gate_pairs_cases_and_uses_an_exact_test():
     from blindspot_ci.experiment.regression import compare_runs, sign_test_p
 
     def run(statuses):
-        return {"steps": [{"case": {"id": f"c{i}"}, "outcome": {"status": s}} for i, s in enumerate(statuses)]}
+        return {"min_iou": 0.35, "steps": [
+            {"case": {"id": f"c{i}", "concept": "tag"}, "image_sha256": str(i),
+             "ground_truth": {"visibility": "visible", "bbox": [0, 0, 10, 10]},
+             "outcome": {"status": s}} for i, s in enumerate(statuses)]}
 
     good = run(["PASS"] * 12)
     bad = run(["FAIL_LOCALIZATION"] * 8 + ["PASS"] * 4)
@@ -152,3 +155,38 @@ def test_regression_gate_pairs_cases_and_uses_an_exact_test():
     assert compare_runs(good, good)["verdict"].startswith("OK")
     assert compare_runs(run(["PASS"] * 5), run(["FAIL_LOCALIZATION"] + ["PASS"] * 4))["verdict"].startswith("WARN")
     assert sign_test_p(0, 0) == 1.0 and sign_test_p(8, 0) < 0.01
+
+
+def test_iou_just_below_threshold_does_not_round_to_pass():
+    case = make_case(box=(0, 0, 100000, 1))
+    assert scoring.score_case(case, [(0, 0, 34996, 1)], 0.35).status == scoring.LOCALIZATION
+
+
+@pytest.mark.parametrize("field,value", [
+    ("image_sha256", "changed"), ("ground_truth", {"visibility": "absent"}),
+    ("concept", "different target"), ("min_iou", 0.5),
+])
+def test_comparison_rejects_changed_evidence(field, value):
+    from copy import deepcopy
+
+    from blindspot_ci.experiment.regression import compare_runs
+
+    first = {"min_iou": 0.35, "steps": [{"case": {"id": "c1", "concept": "tag"},
+             "image_sha256": "original", "ground_truth": {"visibility": "visible"},
+             "outcome": {"status": "PASS"}}]}
+    second = deepcopy(first)
+    if field == "min_iou":
+        second[field] = value
+    elif field == "concept":
+        second["steps"][0]["case"][field] = value
+    else:
+        second["steps"][0][field] = value
+    with pytest.raises(ValueError, match="incompatible"):
+        compare_runs(first, second)
+
+
+def test_comparison_without_provenance_is_unverified():
+    from blindspot_ci.experiment.regression import compare_runs
+
+    run = {"steps": [{"case": {"id": "c1"}, "outcome": {"status": "PASS"}}]}
+    assert compare_runs(run, run)["verdict"].startswith("UNVERIFIED")

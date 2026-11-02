@@ -575,6 +575,7 @@ class BoundedAgentLoop:
             "dataset": {"id": self.dataset.id, "type": self.dataset.kind,
                         "annotation_status": self.dataset.annotation_status},
             "min_iou": self.min_iou, "iterations": iteration,
+            "configured_case_ids": sorted(self.dataset.cases),
             "max_iterations": self.max_iterations,
             "max_provider_requests": self.max_provider_requests,
             "provider_requests": tools.provider_requests,
