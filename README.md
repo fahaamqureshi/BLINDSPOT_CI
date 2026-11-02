@@ -157,6 +157,7 @@ Results and evidence:
 
 How it works and how to judge it:
 
+- `docs/explainer-simple.md`: the whole tool explained in simple words
 - `docs/release-gate.md`: gate decisions, checks, policy and exit codes
 - `docs/design.md`: design rules and known limits
 - `docs/gap-analysis.md`: what is missing against what standards and strong teams ask for
