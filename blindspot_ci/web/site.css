@@ -81,6 +81,10 @@ body.pending-home main>section~section,body.pending-home footer{display:none}
 .vb .vsent{margin:0 0 10px}
 .vb .vhuman{font-weight:700;margin:0 0 12px}
 .vb .vmeta{color:var(--mute);font-size:14px;margin:0 0 12px}
+.vb .vnext{font-weight:700;margin:0 0 10px}
+#verdict:focus{outline:3px solid var(--sam);outline-offset:2px}
+#human:focus{outline:3px solid var(--sam);outline-offset:3px}
+#human:focus #hrect{stroke-width:8}
 .btn.sm{padding:10px 16px;font-size:15px}
 .what{display:block;margin:4px 0 8px;font:14px/1.45 var(--ui)}
 .what summary{display:inline-block;min-height:24px;padding:2px 0;box-sizing:border-box;cursor:pointer;color:var(--link);text-decoration:underline;text-underline-offset:3px}
@@ -116,7 +120,7 @@ ol.fix li{margin-bottom:8px}
 .evbox img+svg{position:absolute;inset:0;height:100%}
 .evph{fill:#dde2e6}.evphtxt{font-family:system-ui,sans-serif;font-weight:600;fill:#3b4650}
 .legend{font:14px/1.45 var(--ui);color:var(--mute);margin:0 0 12px}
-.legend span{margin-right:16px;white-space:nowrap}
+.legend span{margin-right:16px}
 .legend span::before{content:"";display:inline-block;width:22px;border-top:4px solid var(--c);margin-right:6px;vertical-align:middle}
 details.sec{border:2px solid var(--ink);background:var(--panel);margin:0 0 14px}
 details.sec>summary{cursor:pointer;padding:14px 16px;font:800 20px/1.2 var(--display);list-style-position:inside}

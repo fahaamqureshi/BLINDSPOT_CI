@@ -17,7 +17,7 @@
  <p class="small" id="meta"></p>
 </header>
 
-<div class="vb" id="verdict" role="status"><p class="vline">Loading the verdict.</p></div>
+<div class="vb" id="verdict" role="status" tabindex="-1"><p class="vline">Loading the verdict.</p></div>
 
 <section id="why" aria-labelledby="why-h" hidden>
  <h2 id="why-h">Why</h2>
@@ -43,32 +43,32 @@
 
 <section aria-label="More detail" style="padding-top:20px">
  <details class="sec" id="all"><summary>All tests</summary><div class="in" id="all-body"></div></details>
- <details class="sec" id="details"><summary>Details (ranges, hashes, cost)</summary><div class="in" id="details-body"></div></details>
+ <details class="sec" id="details"><summary>Checking details (ranges, hashes, cost)</summary><div class="in" id="details-body"></div></details>
  <details class="sec tools" id="tools"><summary>Run a new check</summary><div class="in">
   <p class="small" id="run-warn"></p>
-  <label for="dataset">Photos <select id="dataset"></select></label>
-  <label for="steps">Max tests <select id="steps"><option>3</option><option selected>5</option><option>8</option></select></label>
+  <label for="dataset">Photos to test <select id="dataset"></select></label>
+  <label for="steps">Number of tests <select id="steps"><option>3</option><option selected>5</option><option>8</option></select></label>
   <button id="run">Run check</button><p id="note" class="small" role="status"></p>
 
   <details class="sec" id="advanced"><summary>Advanced tools</summary><div class="in">
-  <div class="box"><p class="box-t">Muse Image variants</p>
+  <div class="box"><h3 class="box-t">Muse Image variants</h3>
    <p class="small">Edits your labeled photos into harder kinds of photo with the Muse Image model. Boxes are inherited and the photos are marked GENERATED. About $0.01 per image, live mode only.</p>
    <div class="checks"><label><input type="checkbox" value="low_light" checked> low light</label><label><input type="checkbox" value="glare" checked> glare</label><label><input type="checkbox" value="motion_blur"> motion blur</label></div>
    <button id="stress" class="alt">Generate variants</button><p id="stressnote" class="small" role="status"></p></div>
 
-  <div class="box"><p class="box-t">Measured corruptions</p>
+  <div class="box"><h3 class="box-t">Measured corruptions</h3>
    <p class="small">Low light, noise and blur at two strengths, like the ImageNet-C test set (called corruptions). Free. No pixel moves, so the person's box stays exact.</p>
    <button id="corrupt" class="alt">Add measured corruptions</button><p id="corruptnote" class="small" role="status"></p></div>
 
-  <div class="box"><p class="box-t">Models in this app</p><div class="models" id="models"></div></div>
-  <div class="box"><p class="box-t">Tests in this set</p><div id="cases" class="small">Loading</div></div>
+  <div class="box"><h3 class="box-t">Models in this app</h3><div class="models" id="models"></div></div>
+  <div class="box"><h3 class="box-t">Tests in this set</h3><div id="cases" class="small">Loading</div></div>
 
-  <div class="box"><p class="box-t">Reviewer notes</p>
-   <p class="small">Add a note about one photo of the loaded result. Notes are saved with a run that this server stored, not with the built-in examples.</p>
+  <div class="box"><h3 class="box-t">Reviewer notes</h3>
+   <p class="small" id="note-help">Add a note about one photo of the loaded result. Notes save only on a run you make with Run check, not on the built-in examples.</p>
    <label for="note-case">Photo <select id="note-case"></select></label><div id="note-host"></div></div>
 
-  <div class="box"><p class="box-t">Audit</p>
-   <p class="small">Muse Wonder reads the saved results and writes a plain-language audit. It cannot change any score. Live mode only.</p>
+  <div class="box"><h3 class="box-t">Audit</h3>
+   <p class="small">Muse Wonder reads the saved results and writes a plain-language audit. It cannot change any score. Live mode only.</p><p class="small" id="audit-hint"></p>
    <button id="audit-btn">Write audit with Muse Wonder</button><p class="small" id="audit-msg" role="status"></p><div class="audit" id="audit-out"></div></div>
   </div></details>
  </div></details>
@@ -103,6 +103,13 @@ const kind=k=>KINDS[k]||k.replaceAll('_',' ');
 const noun=k=>NOUN[k]||kind(k);
 const TITLES={'coco-val2017':'Everyday photos (COCO)','davis-2017-frames':'Video frames (DAVIS)'};
 const PHOTO_SET={'coco-val2017':'coco','davis-2017-frames':'video'};
+const DATASET_NAMES={synthetic:'Practice photos (synthetic)',real:'Your labeled photos (real)',open:'Open labeled photos (open)',hard:'Hard labeled photos (hard)',video:'Video frames (video)',coco:'Everyday photos, COCO (coco)','coco-val2017':'Everyday photos (COCO)',generated:'Made variants (generated)',corrupted:'Corrupted copies (corrupted)'};
+const datasetName=n=>DATASET_NAMES[n]||n;
+const datasetTitle=id=>TITLES[id]||(String(id).includes('synthetic')?'Practice photos (synthetic)':datasetName(id));
+const exampleIds=new Set();
+function plainReason(r){const t=String(r||'');if(t.includes('mock or fixture'))return 'these answers came from a script, not from the model.';if(t.includes('synthetic, generated or corrupted'))return 'these photos were made or changed by a computer, not labeled real photos.';if(t.includes('not human-labeled'))return 'these photos were not labeled by a person.';return t}
+function plainErr(e){const t=String((e&&e.message)||e||'');if(t==='run not found')return 'this result is a built-in example. Run a new check first, then try again on your own run.';if(t.includes('Live Meta calls are off'))return 'this needs live mode. This server is in mock mode, so it is off. The scores above still stand.';return t}
+function datasetOptions(sel){$('dataset').replaceChildren(...info.datasets.map(n=>h('option',n===sel?{value:n,selected:''}:{value:n},datasetName(n))))}
 const STATUS={PASS:'Passed',FAIL_FALSE_NEGATIVE:'Missed',FAIL_FALSE_POSITIVE:'False alarm',FAIL_LOCALIZATION:'Box too far off',UNKNOWN:'Not scored',ERROR:'Error'};
 const barText=r=>{const t=r*10;return Math.abs(t-Math.round(t))<1e-9?`${Math.round(t)} out of 10`:`${Math.round(r*100)} out of 100`};
 const times=(c,k)=>k==='absent'?`correctly found nothing ${c.passed} times out of ${c.scored}`:`found the object ${c.passed} times out of ${c.scored}`;
@@ -124,7 +131,7 @@ function sentence(run,gate){
   return thin.length?`No required kind of photo is clearly below the bar, but ${thin.length} of ${p.required_conditions.length} have fewer than ${p.min_cases_per_condition} photos: ${thin.map(kind).join(', ')}.`:'No required kind of photo is clearly below the bar.'}
 
 function renderHeader(run,gate){
-  const title=TITLES[run.dataset.id]||run.dataset.id;
+  const title=datasetTitle(run.dataset.id);
   $('src').textContent=sourceLine(run.mode);
   $('title').textContent='Result: '+title;document.title='Result: '+title+' - BLINDSPOT CI';
   $('meta').textContent=`${run.steps.length} tests on ${title}. ${orderLine(run.planner)}`}
@@ -132,7 +139,9 @@ function renderHeader(run,gate){
 function renderVerdict(run,gate){
   const L=LABEL[gate.decision]||[gate.decision,''],v=$('verdict');v.className='vb '+gate.decision;
   const kids=[h('p',{class:'vlabel'},L[0],h('span',{class:'vcode'},`(${gate.decision})`)),h('p',{class:'vline'},L[1]),h('p',{class:'vsent'},sentence(run,gate))];
-  if(gate.decision==='DEMO_ONLY'&&gate.reason)kids.push(h('p',{class:'vmeta'},'Why: '+gate.reason));
+  if(gate.decision==='DEMO_ONLY'&&gate.reason)kids.push(h('p',{class:'vmeta'},'Why: '+plainReason(gate.reason)));
+  const first=fixSteps(gate)[0];
+  if(first)kids.push(h('p',{class:'vnext'},'What to fix first: '+first[1]+' ',h('a',{href:'#fix'},'See all fixes')));
   kids.push(h('p',{class:'vhuman'},'A person must still review this. This is not a safety approval.'),
    h('a',{class:'btn sm',href:`/api/runs/${run.id}/card`,download:`report-${run.id}.md`},'Download report'));
   v.replaceChildren(...kids)}
@@ -165,12 +174,15 @@ function renderWhy(run,gate){
 function plainFix(t){
   let m;
   if(m=t.match(/^add a second annotator on at least (\d+) percent of cases/))return[3,`Have a second person label at least ${m[1]}% of the photos, then compare their labels with the first person's.`];
-  if(m=t.match(/^collect (\d+) more (\w+) photos/))return[2,`Add ${m[1]} more ${noun(m[2])}. All of them must be found to reach the bar.`];
+  if(m=t.match(/^collect (\d+) more (\w+) photos/))return[2,m[2]==='absent'?`Add ${m[1]} more ${noun(m[2])}. The model must correctly find nothing in all of them to reach the bar.`:`Add ${m[1]} more ${noun(m[2])}. All of them must be found to reach the bar.`];
   if(m=t.match(/^fix the (\d+) failing (\w+) cases/))return[1,`Fix the ${m[1]} wrong answers on ${noun(m[2])}, then test again on new photos.`];
-  if(t.startsWith('run a live experiment'))return[0,'Run a live check on real photos that a person labeled, then check the result again.'];
+  if(t.startsWith('run a live experiment')||t.startsWith('re-run against the live model'))return[0,'Run a live check on real photos that a person labeled, then check the result again.'];
+  if(t.startsWith('resolve UNKNOWN and ERROR'))return[1,'Work out the tests that could not be scored, then test again.'];
+  if(t.startsWith('discuss the disagreements'))return[3,'Talk through the photos where the two people who labeled disagreed, then compare their labels again.'];
   return[4,t.charAt(0).toUpperCase()+t.slice(1)+'.']}
+function fixSteps(gate){return (gate.next_experiments||[]).map(plainFix).sort((a,b)=>a[0]-b[0])}
 function renderFix(gate){
-  const steps=gate.next_experiments.map(plainFix).sort((a,b)=>a[0]-b[0]);
+  const steps=fixSteps(gate);
   $('fix-list').replaceChildren(...(steps.length?steps.map(x=>h('li',{},x[1])):[h('li',{},'Nothing to fix. A person still reviews the result.')]));$('fix').hidden=false}
 
 /* evidence */
@@ -205,20 +217,20 @@ function renderEvidence(run){
 /* collapsed sections */
 function table(head,rows,cap){return h('table',{},h('caption',{class:'vis'},cap),h('thead',{},h('tr',{},...head.map(x=>h('th',{scope:'col'},x)))),h('tbody',{},...rows))}
 function renderAll(run){
-  const rows=run.steps.map((st,i)=>{const c=st.case,o=st.outcome;return h('tr',{},h('td',{},String(i+1)),h('th',{scope:'row'},c.title),h('td',{},kind(c.condition)),h('td',{},statusText(o.status)),h('td',{},o.iou===null||o.iou===undefined?'n/a':String(o.iou)))});
+  const rows=run.steps.map((st,i)=>{const c=st.case,o=st.outcome;return h('tr',{},h('td',{},String(i+1)),h('th',{scope:'row'},c.title),h('td',{},kind(c.condition)),h('td',{},statusText(o.status)),h('td',{},o.iou===null||o.iou===undefined?'n/a':Number(o.iou).toFixed(2)))});
   $('all-body').replaceChildren(h('p',{class:'small'},'Every test in this run, in the order it ran. Overlap is the ',abbr('IoU',IOU_TIP),' score.'),h('div',{class:'tablewrap',tabindex:'0',role:'region','aria-label':'All tests'},table(['#','Photo','Kind of photo','Result','Overlap'],rows,'Every test in the run')))}
 function renderDetails(run,gate){
   const t=gate.traceability||{},sm=run.summary,p=gate.policy;
-  const kv=[['Run id',run.id],['Source label',run.mode],['Test order',run.planner],['Model',run.model],['Photos',`${run.dataset.id} (${run.dataset.type})`],['How the labels were made',run.dataset.annotation_status],
+  const kv=[['Run id',run.id],['Source label',`${sourceLine(run.mode)} (${run.mode})`],['Test order',`${orderLine(run.planner)} (${run.planner})`],['Model',run.model],['Photos',`${datasetTitle(run.dataset.id)} (${run.dataset.id}, ${run.dataset.type})`],['How the labels were made',run.dataset.annotation_status],
    ['Overlap needed to pass',String(sm.min_iou)],['Calls and cost',`${run.calls} calls, about $${run.estimated_cost_usd}`],['Started',run.started_at],['Run file sha256',t.run_sha256||'n/a'],['Distinct photo hashes',String(t.distinct_image_hashes)],
-   ['Release gate rules',`version ${p.policy_version}, bar ${p.min_pass_rate}, ${p.min_cases_per_condition} photos per kind, ${p.min_judged_cases} photos before a miss counts`]];
+   ['Release gate rules',`version ${p.policy_version}, bar ${barText(p.min_pass_rate)} (${p.min_pass_rate}), ${p.min_cases_per_condition} photos per kind, ${p.min_judged_cases} photos before a miss counts`]];
   const rng=Object.entries(sm.by_condition).map(([k,c])=>h('tr',{},h('th',{scope:'row'},kind(k)),h('td',{},c.scored?`${c.passed} of ${c.scored}`:'0 of 0'),h('td',{},c.scored?`${pct(c.pass_ci95[0])} to ${pct(c.pass_ci95[1])}`:'n/a'),h('td',{},c.scored<p.min_cases_per_condition?`Fewer than ${p.min_cases_per_condition} photos`:'Enough photos')));
   const chk=gate.checks.map(c=>h('tr',{},h('td',{},{PASS:'Passed',FAIL:'Failed',NA:'Not applicable'}[c.status]||c.status),h('th',{scope:'row'},c.name),h('td',{},c.detail)));
   $('details-body').replaceChildren(
    h('dl',{class:'kv'},...kv.flatMap(([a,b])=>[h('dt',{},a),h('dd',{},String(b))])),
-   h('p',{class:'box-t'},'Ranges'),h('details',{class:'what'},h('summary',{},'What is a Wilson interval?'),h('p',{},'It is a 95% range for the true pass rate, given how few photos were tested. A small group of photos gives a wide range on purpose.')),
+   h('h3',{class:'box-t'},'Ranges'),h('details',{class:'what'},h('summary',{},'What is a Wilson interval?'),h('p',{},'It is a 95% range for the true pass rate, given how few photos were tested. A small group of photos gives a wide range on purpose.')),
    h('div',{class:'tablewrap',tabindex:'0',role:'region','aria-label':'Ranges by kind of photo'},table(['Kind of photo','Found',h('span',{},'95% range ',h('small',{},'(',abbr('Wilson interval',WILSON_TIP),')')),'Photos'],rng,'Ranges by kind of photo')),
-   h('p',{class:'box-t'},'Every release gate check'),h('div',{class:'tablewrap',tabindex:'0',role:'region','aria-label':'Gate checks'},table(['Status','Check','Detail'],chk,'Release gate checks')))}
+   h('h3',{class:'box-t'},'Every release gate check'),h('div',{class:'tablewrap',tabindex:'0',role:'region','aria-label':'Gate checks'},table(['Status','Check','Detail'],chk,'Release gate checks')))}
 
 /* advanced tools */
 function drawModels(){$('models').replaceChildren(...info.models.map(m=>h('div',{},h('b',{},m.model),h('span',{},m.role+(used.has(m.id)?' (used this session)':'')))))}
@@ -236,14 +248,14 @@ function noteBox(run,caseId){
   const ta=h('textarea',{'aria-label':'Reviewer note',placeholder:'Is the dashed box on the object? Does the teal box match?',maxlength:'1000'});
   const save=h('button',{class:'alt'},'Save note'),rec=h('button',{class:'alt'},'Record voice note');
   const add=n=>{run.reviewer_notes.push(n);draw()};
-  save.onclick=async()=>{if(!ta.value.trim())return;try{add(await api(`/api/runs/${run.id}/notes`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({case_id:caseId,text:ta.value})}));ta.value='';msg.textContent=''}catch(e){msg.textContent='Note failed: '+e.message}};
+  save.onclick=async()=>{if(!ta.value.trim())return;try{add(await api(`/api/runs/${run.id}/notes`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({case_id:caseId,text:ta.value})}));ta.value='';msg.textContent=''}catch(e){msg.textContent='Note failed: '+plainErr(e)}};
   let mr=null,chunks=[];
   rec.onclick=async()=>{
     if(mr){mr.stop();return}
     try{const stream=await navigator.mediaDevices.getUserMedia({audio:true});mr=new MediaRecorder(stream);chunks=[];
       mr.ondataavailable=e=>chunks.push(e.data);
       mr.onstop=async()=>{stream.getTracks().forEach(t=>t.stop());mr=null;rec.textContent='Record voice note';msg.textContent='Transcribing with Muse Voice Transcribe';
-        try{const wav=await toWav(new Blob(chunks));add(await api(`/api/runs/${run.id}/voice?case_id=${encodeURIComponent(caseId)}`,{method:'POST',headers:{'content-type':'audio/wav'},body:wav}));used.add('muse-voice-transcribe-1.0');drawModels();msg.textContent=''}catch(e){msg.textContent='Voice note failed: '+e.message}};
+        try{const wav=await toWav(new Blob(chunks));add(await api(`/api/runs/${run.id}/voice?case_id=${encodeURIComponent(caseId)}`,{method:'POST',headers:{'content-type':'audio/wav'},body:wav}));used.add('muse-voice-transcribe-1.0');drawModels();msg.textContent=''}catch(e){msg.textContent='Voice note failed: '+plainErr(e)}};
       mr.start();rec.textContent='Stop recording';msg.textContent='Recording. Speak, then press Stop.';
       setTimeout(()=>{if(mr&&mr.state==='recording')mr.stop()},60000)}
     catch(e){msg.textContent='Microphone unavailable: '+e.message}};
@@ -253,7 +265,9 @@ function renderTools(run){
   const draw=()=>$('note-host').replaceChildren(sel.value?noteBox(run,sel.value):h('p',{class:'small'},'No photos in this result.'));
   sel.onchange=draw;draw();
   $('audit-out').textContent=run.audit?run.audit.text:'';
-  if(run.mode.includes('LIVE')){used.add('muse-spark-1.3');used.add('sam-3.1');drawModels()}}
+  const isExample=exampleIds.has(run.id);
+  $('note-help').textContent=isExample?'This result is a built-in example. Notes save only on a run you make with Run check, so this box is just for trying. Run a check first, then add your note.':'Add a note about one photo of the loaded result. Notes save with this run on this server.';
+  $('audit-hint').textContent=isExample?'This result is a built-in example. Audits save only on a run you make with Run check. Run a check first, then write the audit.':(info&&info.mode==='MOCK_FIXTURE'?'This server is in mock mode. Audits need live mode, so this button will explain instead of writing. The scores above still stand.':'')}
 
 async function render(run){
   run.reviewer_notes=run.reviewer_notes||[];cur=run;
@@ -277,40 +291,42 @@ async function init(){
   try{info=await api('/api/info')}catch(e){info=await api('/api/info?dataset=synthetic')}
   ds=info.datasets.includes(info.default_dataset)?info.default_dataset:'synthetic';
   $('servermode').textContent=`This server: ${info.mode==='MOCK_FIXTURE'?'mock mode (new checks only make practice data)':'live mode'}. Test order: ${info.planner}.`;
-  $('dataset').replaceChildren(...info.datasets.map(n=>h('option',n===ds?{value:n,selected:''}:{value:n},n)));
+  datasetOptions(ds);
   runWarn();
   const q=new URLSearchParams(location.search);
   let id=q.get('run');
-  if(!id){try{const ex=await api('/api/examples');id=ex.length?(ex.find(x=>x.dataset==='coco-val2017')||ex[0]).id:null}catch(e){id=null}}
+  try{const ex=await api('/api/examples');ex.forEach(x=>exampleIds.add(x.id));if(!id)id=ex.length?(ex.find(x=>x.dataset==='coco-val2017')||ex[0]).id:null}catch(e){if(!id)id=null}
   setDataset(ds).catch(e=>{$('cases').textContent='Could not list the tests: '+e.message});
   if(id)await loadRun(id);
   else fail('There is no saved result to show yet. Run a new check below.')}
-$('dataset').addEventListener('change',e=>setDataset(e.target.value).catch(x=>{$('note').textContent=x.message}));
+$('dataset').addEventListener('change',e=>setDataset(e.target.value).catch(x=>{$('note').textContent=plainErr(x)}));
 $('run').addEventListener('click',async()=>{
   const b=$('run');b.disabled=true;$('note').textContent='Running';
   try{const d=await api('/api/experiment',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({max_steps:Number($('steps').value),dataset:ds})});
-    await render(d);history.replaceState(null,'','?run='+d.id);$('note').textContent='Saved as run '+d.id+'. The result is at the top of this page.'}
-  catch(e){$('note').textContent='Error: '+e.message}finally{b.disabled=false}});
+    used.add('sam-3.1');if(info.planner==='muse')used.add('muse-spark-1.3');
+    await render(d);history.replaceState(null,'','?run='+d.id);$('note').textContent='Done. Your new result is at the top of this page (run '+d.id+'). Look at the verdict first, then What to fix first.';
+    $('verdict').scrollIntoView();$('verdict').focus({preventScroll:true})}
+  catch(e){$('note').textContent='Error: '+plainErr(e)}finally{b.disabled=false}});
 $('stress').addEventListener('click',async()=>{
   const b=$('stress'),edits=[...document.querySelectorAll('.checks input:checked')].map(i=>i.value),src=ds==='generated'?(info.datasets.includes('real')?'real':'synthetic'):ds;
   if(!edits.length){$('stressnote').textContent='Pick at least one edit.';return}
   b.disabled=true;$('stressnote').textContent='Muse Image is editing photos. This can take a minute.';
   try{const d=await api('/api/stress',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({source:src,edits})});
     used.add('muse-image-1.0');info=await api('/api/info?dataset=generated');
-    $('dataset').replaceChildren(...info.datasets.map(n=>h('option',n==='generated'?{value:n,selected:''}:{value:n},n)));
+    datasetOptions('generated');
     await setDataset('generated');$('stressnote').textContent=`Made ${d.created.length} variants (about $${d.estimated_cost_usd}). Photos switched to generated.`}
-  catch(e){$('stressnote').textContent='Failed: '+e.message}finally{b.disabled=false}});
+  catch(e){$('stressnote').textContent='Failed: '+plainErr(e)}finally{b.disabled=false}});
 $('corrupt').addEventListener('click',async()=>{
   const b=$('corrupt'),src=['generated','corrupted'].includes(ds)?(info.datasets.includes('real')?'real':info.datasets.includes('open')?'open':'synthetic'):ds;
   b.disabled=true;$('corruptnote').textContent='Making corruptions';
   try{const d=await api('/api/corrupt',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({source:src,corruptions:['low_light','noise','blur'],severities:[3,5]})});
     info=await api('/api/info?dataset=corrupted');
-    $('dataset').replaceChildren(...info.datasets.map(n=>h('option',n==='corrupted'?{value:n,selected:''}:{value:n},n)));
+    datasetOptions('corrupted');
     await setDataset('corrupted');$('corruptnote').textContent=`Made ${d.created.length} corrupted cases from ${src}. Photos switched to corrupted.`}
-  catch(e){$('corruptnote').textContent='Failed: '+e.message}finally{b.disabled=false}});
+  catch(e){$('corruptnote').textContent='Failed: '+plainErr(e)}finally{b.disabled=false}});
 $('audit-btn').addEventListener('click',async()=>{
   if(!cur)return;const b=$('audit-btn');b.disabled=true;$('audit-msg').textContent='Muse Wonder is writing';
   try{const a=await api(`/api/runs/${cur.id}/audit`,{method:'POST'});$('audit-out').textContent=a.text;used.add('muse-wonder-1.0');drawModels();$('audit-msg').textContent='Written by '+a.model}
-  catch(e){$('audit-msg').textContent='Audit failed: '+e.message}finally{b.disabled=false}});
+  catch(e){$('audit-msg').textContent='Audit failed: '+plainErr(e)}finally{b.disabled=false}});
 init().catch(e=>{fail('Cannot reach the server ('+e.message+'). Start it with python -m blindspot_ci.cli serve, then reload this page.');$('run').disabled=true;$('cases').textContent='Server not reachable.'}).finally(()=>document.body.classList.remove('pending'));
 </script></body></html>

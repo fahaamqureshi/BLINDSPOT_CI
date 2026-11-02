@@ -50,6 +50,18 @@ const LABEL={NO_GO:['Do not ship yet','A required kind of photo is below the bar
  DEMO_ONLY:['Practice data only','Mock or generated data. It shows the software works, not how good the model is.']};
 const KINDS={normal:'normal photos',low_light:'low light photos',small_object:'small objects',truncated:'cut off objects',absent:'photos without the object',lookalike_scene:'look-alike scenes',other_object:'photos of other objects'};
 const kind=k=>KINDS[k]||k.replaceAll('_',' ');
+const NOUN={normal:'normal photos',low_light:'low light photos',small_object:'photos with a small object',truncated:'photos where the object is cut off',absent:'photos without the object'};
+const noun=k=>NOUN[k]||kind(k);
+function plainFix(t){
+  let m;
+  if(m=t.match(/^add a second annotator on at least (\d+) percent of cases/))return[3,`Have a second person label at least ${m[1]}% of the photos, then compare their labels with the first person's.`];
+  if(m=t.match(/^collect (\d+) more (\w+) photos/))return[2,m[2]==='absent'?`Add ${m[1]} more ${noun(m[2])}. The model must correctly find nothing in all of them to reach the bar.`:`Add ${m[1]} more ${noun(m[2])}. All of them must be found to reach the bar.`];
+  if(m=t.match(/^fix the (\d+) failing (\w+) cases/))return[1,`Fix the ${m[1]} wrong answers on ${noun(m[2])}, then test again on new photos.`];
+  if(t.startsWith('run a live experiment')||t.startsWith('re-run against the live model'))return[0,'Run a live check on real photos that a person labeled, then check the result again.'];
+  if(t.startsWith('resolve UNKNOWN and ERROR'))return[1,'Work out the tests that could not be scored, then test again.'];
+  if(t.startsWith('discuss the disagreements'))return[3,'Talk through the photos where the two people who labeled disagreed, then compare their labels again.'];
+  return[4,t.charAt(0).toUpperCase()+t.slice(1)+'.']}
+const fixFirst=g=>(g.next_experiments||[]).map(plainFix).sort((a,b)=>a[0]-b[0])[0];
 const barText=r=>{const t=r*10;return Math.abs(t-Math.round(t))<1e-9?`${Math.round(t)} out of 10`:`${Math.round(r*100)} out of 100`};
 const times=(c,k)=>k==='absent'?`correctly found nothing ${c.passed} times out of ${c.scored}`:`found the object ${c.passed} times out of ${c.scored}`;
 function sentence(gate){
@@ -69,8 +81,10 @@ async function main(){
   const gate=await api(`/api/runs/${coco.id}/release-gate`),L=LABEL[gate.decision];
   const live=coco.mode==='LIVE_META';
   const card=$('card');card.className='vb '+gate.decision;
+  const first=fixFirst(gate);
   card.replaceChildren(h('p',{class:'vlabel'},L[0],h('span',{class:'vcode'},`(${gate.decision})`)),
    h('p',{class:'vline'},L[1]),h('p',{class:'vsent'},sentence(gate)),
+   ...(first?[h('p',{class:'vnext'},'What to fix first: '+first[1])]:[]),
    h('p',{class:'vmeta'},`${coco.title}. ${coco.tests} tests, ${live?'real answers from the model':'practice answers from a script'}.`),
    h('a',{class:'btn',href:`/app?run=${coco.id}`},'See the full result'));
   const more=$('more');
