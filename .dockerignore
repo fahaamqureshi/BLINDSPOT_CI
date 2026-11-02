@@ -10,6 +10,7 @@ datasets/real
 datasets/open
 datasets/hard
 datasets/video
+datasets/coco
 datasets/generated
 datasets/corrupted
 datasets/*_manifest.json

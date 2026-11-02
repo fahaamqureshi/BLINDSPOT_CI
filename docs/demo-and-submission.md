@@ -37,6 +37,15 @@ https://cerebralvalley.ai/e/meta-ai-developer-hackathon and lists a deadline of 
 - [ ] Submit by 8:00 PM ET on Nov 4, an hour before the deadline, then re-open the submission link to confirm.
 - [ ] Rotate the API key afterwards if the project folder was ever synced online or shared with a key in it.
 
+## Judging
+
+The event page names two tracks. Indie is for individual builders and students and is judged on creativity,
+technical ambition, and whether the project works. Startup is for teams and founders and is judged on
+technical execution and whether the project holds up in production. A secondary report gives project
+scoring weights of impact 30 percent, creative use of Meta AI tools 25 percent, the demo including its
+video 25 percent, and technical depth and execution 20 percent. Those weights are UNVERIFIED against the
+official Rules. Source: https://madrobot.blog/2026/10/03/meta-global-ai-developer-hackathon-1-million-prizes-muse-model-api/
+
 ## Owner-only blockers
 
 - Take 28 photos of your own after the model release. Until they exist the training overlap check keeps

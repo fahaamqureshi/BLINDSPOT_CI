@@ -44,13 +44,13 @@
 <section aria-label="More detail" style="padding-top:20px">
  <details class="sec" id="all"><summary>All tests</summary><div class="in" id="all-body"></div></details>
  <details class="sec" id="details"><summary>Details (ranges, hashes, cost)</summary><div class="in" id="details-body"></div></details>
- <details class="sec tools" id="tools"><summary>Run a new check and advanced tools</summary><div class="in">
-  <h3>Run a new check</h3>
+ <details class="sec tools" id="tools"><summary>Run a new check</summary><div class="in">
   <p class="small" id="run-warn"></p>
   <label>Photos <select id="dataset"></select></label>
-  <label>Max tests <select id="steps"><option>3</option><option selected>5</option><option>6</option><option>8</option></select></label>
+  <label>Max tests <select id="steps"><option>3</option><option selected>5</option><option>8</option></select></label>
   <button id="run">Run check</button><p id="note" class="small" role="status"></p>
 
+  <details class="sec" id="advanced"><summary>Advanced tools</summary><div class="in">
   <div class="box"><h3>Muse Image variants</h3>
    <p class="small">Edits your labeled photos into harder kinds of photo with the Muse Image model. Boxes are inherited and the photos are marked GENERATED. About $0.01 per image, live mode only.</p>
    <div class="checks"><label><input type="checkbox" value="low_light" checked> low light</label><label><input type="checkbox" value="glare" checked> glare</label><label><input type="checkbox" value="motion_blur"> motion blur</label></div>
@@ -70,6 +70,7 @@
   <div class="box"><h3>Audit</h3>
    <p class="small">Muse Wonder reads the saved results and writes a plain-language audit. It cannot change any score. Live mode only.</p>
    <button id="audit-btn">Write audit with Muse Wonder</button><p class="small" id="audit-msg" role="status"></p><div class="audit" id="audit-out"></div></div>
+  </div></details>
  </div></details>
 </section>
 </main>
