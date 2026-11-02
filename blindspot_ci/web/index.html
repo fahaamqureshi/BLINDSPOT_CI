@@ -46,28 +46,28 @@
  <details class="sec" id="details"><summary>Details (ranges, hashes, cost)</summary><div class="in" id="details-body"></div></details>
  <details class="sec tools" id="tools"><summary>Run a new check</summary><div class="in">
   <p class="small" id="run-warn"></p>
-  <label>Photos <select id="dataset"></select></label>
-  <label>Max tests <select id="steps"><option>3</option><option selected>5</option><option>8</option></select></label>
+  <label for="dataset">Photos <select id="dataset"></select></label>
+  <label for="steps">Max tests <select id="steps"><option>3</option><option selected>5</option><option>8</option></select></label>
   <button id="run">Run check</button><p id="note" class="small" role="status"></p>
 
   <details class="sec" id="advanced"><summary>Advanced tools</summary><div class="in">
-  <div class="box"><h3>Muse Image variants</h3>
+  <div class="box"><p class="box-t">Muse Image variants</p>
    <p class="small">Edits your labeled photos into harder kinds of photo with the Muse Image model. Boxes are inherited and the photos are marked GENERATED. About $0.01 per image, live mode only.</p>
    <div class="checks"><label><input type="checkbox" value="low_light" checked> low light</label><label><input type="checkbox" value="glare" checked> glare</label><label><input type="checkbox" value="motion_blur"> motion blur</label></div>
    <button id="stress" class="alt">Generate variants</button><p id="stressnote" class="small" role="status"></p></div>
 
-  <div class="box"><h3>Measured corruptions</h3>
+  <div class="box"><p class="box-t">Measured corruptions</p>
    <p class="small">Low light, noise and blur at two strengths, like the ImageNet-C test set (called corruptions). Free. No pixel moves, so the person's box stays exact.</p>
    <button id="corrupt" class="alt">Add measured corruptions</button><p id="corruptnote" class="small" role="status"></p></div>
 
-  <div class="box"><h3>Models in this app</h3><div class="models" id="models"></div></div>
-  <div class="box"><h3>Tests in this set</h3><div id="cases" class="small">Loading</div></div>
+  <div class="box"><p class="box-t">Models in this app</p><div class="models" id="models"></div></div>
+  <div class="box"><p class="box-t">Tests in this set</p><div id="cases" class="small">Loading</div></div>
 
-  <div class="box"><h3>Reviewer notes</h3>
+  <div class="box"><p class="box-t">Reviewer notes</p>
    <p class="small">Add a note about one photo of the loaded result. Notes are saved with a run that this server stored, not with the built-in examples.</p>
-   <label>Photo <select id="note-case"></select></label><div id="note-host"></div></div>
+   <label for="note-case">Photo <select id="note-case"></select></label><div id="note-host"></div></div>
 
-  <div class="box"><h3>Audit</h3>
+  <div class="box"><p class="box-t">Audit</p>
    <p class="small">Muse Wonder reads the saved results and writes a plain-language audit. It cannot change any score. Live mode only.</p>
    <button id="audit-btn">Write audit with Muse Wonder</button><p class="small" id="audit-msg" role="status"></p><div class="audit" id="audit-out"></div></div>
   </div></details>
@@ -192,9 +192,9 @@ function evidenceCard(st,run){
   im.src=`${c.image_url}?dataset=${encodeURIComponent(photoSet(run))}`;
   const hasGt=st.ground_truth&&st.ground_truth.bbox,hasPred=st.prediction&&st.prediction.detections.some(d=>d.bbox);
   const what=fn?'The model drew no box.':fp?'A person marked no object here, but the model drew a box.':`The boxes overlap by ${o.iou===null?'n/a':Number(o.iou).toFixed(2)}. We need at least ${Number(run.summary.min_iou).toFixed(2)}.`;
-  return h('li',{},h('figure',{class:'ev'},box,h('figcaption',{},h('b',{},c.title),`${STATUS[o.status]}. ${what}`,h('br'),`Person box: ${hasGt?'dashed amber':'none, the object is absent'}. Model box: ${hasPred?'solid teal':'none'}.`)))}
+  return h('li',{},h('figure',{class:'ev'},box,h('figcaption',{},h('h3',{class:'ev-t'},c.title),`${STATUS[o.status]}. ${what}`,h('br'),`Person box: ${hasGt?'dashed amber':'none, the object is absent'}. Model box: ${hasPred?'solid teal':'none'}.`)))}
 function renderEvidence(run){
-  const miss=run.steps.filter(x=>x.outcome.status.startsWith('FAIL')),grid=$('ev-grid'),LIM=12;
+  const miss=run.steps.filter(x=>x.outcome.status.startsWith('FAIL')),grid=$('ev-grid'),LIM=6;
   $('evidence').hidden=false;
   if(!miss.length){$('ev-intro').textContent='No test failed in this run.';grid.replaceChildren();$('ev-more').hidden=true;return}
   $('ev-intro').textContent=`${miss.length} of ${run.steps.length} tests failed. Each photo below is one failure. If a photo is not in this download, the boxes are drawn on a blank panel.`;
@@ -216,9 +216,9 @@ function renderDetails(run,gate){
   const chk=gate.checks.map(c=>h('tr',{},h('td',{},{PASS:'Passed',FAIL:'Failed',NA:'Not applicable'}[c.status]||c.status),h('th',{scope:'row'},c.name),h('td',{},c.detail)));
   $('details-body').replaceChildren(
    h('dl',{class:'kv'},...kv.flatMap(([a,b])=>[h('dt',{},a),h('dd',{},String(b))])),
-   h('h3',{},'Ranges'),h('details',{class:'what'},h('summary',{},'What is a Wilson interval?'),h('p',{},'It is a 95% range for the true pass rate, given how few photos were tested. A small group of photos gives a wide range on purpose.')),
+   h('p',{class:'box-t'},'Ranges'),h('details',{class:'what'},h('summary',{},'What is a Wilson interval?'),h('p',{},'It is a 95% range for the true pass rate, given how few photos were tested. A small group of photos gives a wide range on purpose.')),
    h('div',{class:'tablewrap',tabindex:'0',role:'region','aria-label':'Ranges by kind of photo'},table(['Kind of photo','Found',h('span',{},'95% range ',h('small',{},'(',abbr('Wilson interval',WILSON_TIP),')')),'Photos'],rng,'Ranges by kind of photo')),
-   h('h3',{},'Every release gate check'),h('div',{class:'tablewrap',tabindex:'0',role:'region','aria-label':'Gate checks'},table(['Status','Check','Detail'],chk,'Release gate checks')))}
+   h('p',{class:'box-t'},'Every release gate check'),h('div',{class:'tablewrap',tabindex:'0',role:'region','aria-label':'Gate checks'},table(['Status','Check','Detail'],chk,'Release gate checks')))}
 
 /* advanced tools */
 function drawModels(){$('models').replaceChildren(...info.models.map(m=>h('div',{},h('b',{},m.model),h('span',{},m.role+(used.has(m.id)?' (used this session)':'')))))}
