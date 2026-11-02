@@ -26,7 +26,15 @@ def _path(runs_dir: Path, run_id: str) -> Path:
 def load_extras(runs_dir: Path, run_id: str) -> dict[str, Any]:
     path = _path(runs_dir, run_id)
     if path.is_file():
-        return json.loads(path.read_text(encoding="utf-8"))
+        try:
+            extras = json.loads(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            return {"reviewer_notes": [], "audit": None}  # a damaged sidecar is a miss, like the cache
+        if isinstance(extras, dict):
+            extras.setdefault("reviewer_notes", [])
+            extras.setdefault("audit", None)
+            return extras
+        return {"reviewer_notes": [], "audit": None}
     return {"reviewer_notes": [], "audit": None}
 
 

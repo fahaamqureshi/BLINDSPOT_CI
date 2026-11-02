@@ -15,7 +15,7 @@ Conditions are measured, not guessed:
 Usage (run with -I because the downloaded CSVs are untrusted data):
     python -I scripts/fetch_open_data.py [--out DIR] [--seed 7]
     python -m blindspot_ci.cli import-photos DIR/open-labels.json --dataset open
-Downloads about 40 MB of CSV files once, then roughly 30 photos. Nothing here is sent to Meta.
+Downloads about 206 MB of CSV files once, then roughly 30 photos. Nothing here is sent to Meta.
 """
 from __future__ import annotations
 

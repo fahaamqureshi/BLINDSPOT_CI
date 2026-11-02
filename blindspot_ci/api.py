@@ -251,8 +251,11 @@ def examples() -> list[dict[str, object]]:
     for path in sorted(EXAMPLES.glob("*.json")) if EXAMPLES.is_dir() else []:
         if not RUN_ID.match(path.stem):
             continue
-        run = load_run(EXAMPLES, path.stem)
-        gate = release_gate.evaluate_file(EXAMPLES, path.stem, policy)
+        try:
+            run = load_run(EXAMPLES, path.stem)
+            gate = release_gate.evaluate_file(EXAMPLES, path.stem, policy)
+        except (ValueError, KeyError, TypeError, OSError):
+            continue  # one damaged example file must not take the whole list down
         summary = run.get("summary") or {}
         dataset = run.get("dataset") or {}
         out.append({"id": run["id"], "title": EXAMPLE_TITLES.get(dataset.get("id"), str(dataset.get("id"))),
@@ -383,8 +386,15 @@ def run(request: RunRequest):
     scenarios = load_scenarios()
     if request.scenario_id not in scenarios:
         raise HTTPException(404, "scenario not found")
+    cfg = Settings()
     try:
-        agent = build_agent()
+        agent = build_agent(cfg)
     except PermissionError as exc:
         raise HTTPException(403, str(exc)) from exc
-    return agent.run(scenarios[request.scenario_id])
+    spends = cfg.provider == "meta" or cfg.planner == "muse"
+    if spends and _guard(cfg).exhausted():
+        raise HTTPException(429, "this server's spend cap is used up; restart it or raise BLINDSPOT_BUDGET_USD")
+    report = agent.run(scenarios[request.scenario_id])
+    if report.estimated_cost_usd > 0:
+        _guard(cfg).charge(report.calls, report.estimated_cost_usd)
+    return report

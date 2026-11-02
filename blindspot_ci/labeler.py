@@ -18,6 +18,7 @@ from PIL import Image, ImageOps
 from pydantic import BaseModel, Field
 
 from blindspot_ci.experiment.cases import IMAGE_SUFFIXES, VISIBILITIES
+from blindspot_ci.fsutil import atomic_write_text
 from blindspot_ci.security import install_local_guard
 
 WEB = Path(__file__).parent / "web"
@@ -50,7 +51,11 @@ def create_app(folder: Path, out: Path, annotator: str, concept: str = "red safe
 
     def load() -> dict[str, Any]:
         if out.is_file():
-            return {c["image_source"]: c for c in json.loads(out.read_text(encoding="utf-8"))["cases"]}
+            try:
+                return {c["image_source"]: c
+                        for c in json.loads(out.read_text(encoding="utf-8"))["cases"]}
+            except (json.JSONDecodeError, OSError, KeyError, TypeError):
+                return {}  # a damaged labels file must not brick the tool; the next save rewrites it
         return {}
 
     def known(name: str) -> Path:
@@ -100,7 +105,7 @@ def create_app(folder: Path, out: Path, annotator: str, concept: str = "red safe
                 "recovery_case": None, "note": request.note}
         cases[str(path)] = case
         out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(json.dumps({"cases": list(cases.values())}, indent=2), encoding="utf-8")
+        atomic_write_text(out, json.dumps({"cases": list(cases.values())}, indent=2))
         return {"saved": case["id"], "total": len(cases), "of": len(files)}
 
     return app

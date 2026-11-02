@@ -17,9 +17,11 @@ from blindspot_ci.experiment.cases import (
     VISIBILITIES,
     sha256_file,
 )
+from blindspot_ci.fsutil import atomic_write_text
 from blindspot_ci.media import MAX_IMAGE_BYTES
 
 MAX_EDGE = 1600
+MAX_IMAGE_PIXELS = 50_000_000  # decoded-size bound, checked from the header before pixels load
 REQUIRED_PROVENANCE = ("annotator", "labeled_at")
 
 
@@ -29,9 +31,18 @@ def _normalized(source: Path) -> tuple[Image.Image, tuple[int, int]]:
     People label the photo as they see it, upright. Phone files often store it rotated plus an
     EXIF flag, so the pixels must be rotated before boxes are checked or sent to the model.
     """
-    with Image.open(source) as raw:
-        raw.load()
-        upright = ImageOps.exif_transpose(raw)
+    try:
+        with Image.open(source) as raw:
+            width, height = raw.size
+            if width * height > MAX_IMAGE_PIXELS:
+                raise ValueError(f"{source.name}: image is {width}x{height} "
+                                 f"({width * height:,} pixels); the limit here is "
+                                 f"{MAX_IMAGE_PIXELS:,} pixels. Resize it first")
+            raw.load()
+            upright = ImageOps.exif_transpose(raw)
+    except Image.DecompressionBombError as exc:
+        raise ValueError(f"{source.name}: image has too many pixels to import safely. "
+                         f"Resize it first") from exc
     original = upright.size
     scale = min(1.0, MAX_EDGE / max(original))
     if scale < 1.0:
@@ -130,9 +141,9 @@ def import_labeled(labels_json: Path, datasets: Path = DATASETS, force: bool = F
             "image_sha256": sha256_file(target), "source_sha256": sha256_file(photo),
             "stored_size": list(image.size), "original_size": list(original),
         })
-    manifest_path.write_text(json.dumps({
+    atomic_write_text(manifest_path, json.dumps({
         "dataset_id": KINDS[name][0], "type": KINDS[name][1], "annotation_status": KINDS[name][2],
-        "imported_at": datetime.now(timezone.utc).isoformat(), "cases": cases}, indent=2), encoding="utf-8")
+        "imported_at": datetime.now(timezone.utc).isoformat(), "cases": cases}, indent=2))
     return len(cases)
 
 
@@ -163,6 +174,6 @@ def adjudicate(case_id: str, reason: str, by: str, name: str = "open", datasets:
                 "original_label": item["ground_truth"], "by": by.strip(), "reason": reason.strip(),
                 "at": datetime.now(timezone.utc).isoformat()}
             item["ground_truth"] = {"visibility": "unknown", "bbox": None}
-            path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+            atomic_write_text(path, json.dumps(manifest, indent=2))
             return item
     raise ValueError(f"no case {case_id} in {path.name}")
