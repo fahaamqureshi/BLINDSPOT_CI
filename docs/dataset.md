@@ -1,5 +1,7 @@
 # Building the real evidence set
 
+For new installations, use the [workspace workflow](DEVELOPER_GUIDE.md) so imports stay outside the installed package. Pass the same --workspace path to label, import-photos and serve. Relative image_source paths resolve against the labels file. The checkout-based examples below remain available for existing users.
+
 The fixture drawings only prove the code works. A judge learns something about SAM 3.1 only from
 real photos that a person labeled. There are two ways to get them: public open data (below) or your
 own photos (the rest of this page). The two sets stay separate (`open` and `real`) and are never

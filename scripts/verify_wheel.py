@@ -32,6 +32,23 @@ for case in load_named_dataset("synthetic").cases:
 assert client.post(f"/api/runs/{run_id}/audit").status_code == 403
 print(json.dumps({"installed_wheel": "PASS", "public_assets": "PASS",
                   "mock_checks": run["summary"]["tested"], "gate": "DEMO_ONLY", "paid_calls": 0}))
+# Exercise the developer workflow against the installed package, not checkout files.
+import subprocess, sys
+workspace = Path.cwd() / "developer workspace"
+env = dict(os.environ)
+for key in ("BLINDSPOT_RUNS_DIR", "BLINDSPOT_CACHE_DIR", "BLINDSPOT_PROVENANCE_PATH"):
+    env.pop(key, None)
+def command(*args):
+    result = subprocess.run([sys.executable, "-m", "blindspot_ci.cli", *args],
+                            env=env, capture_output=True, text=True, timeout=30)
+    assert result.returncode == 0, result.stderr or result.stdout
+    return result.stdout
+command("init", str(workspace))
+check = json.loads(command("--workspace", str(workspace), "doctor", "--mock", "--json"))
+assert check["ok"] and check["network_calls"] == 0
+command("--workspace", str(workspace), "experiment", "--mock", "--steps", "5")
+assert len(list((workspace / "artifacts/runs").glob("*.json"))) == 1
+print(json.dumps({"installed_workspace": "PASS", "doctor": "PASS", "paid_calls": 0}))
 '''
 
 
@@ -52,7 +69,7 @@ def verify(wheel: Path) -> str:
                 if not member.is_dir():
                     path.parent.mkdir(parents=True, exist_ok=True)
                     path.write_bytes(archive.read(member))
-        env = {**os.environ, "PYTHONPATH": str(target), "DOTENV_DISABLED": "1",
+        env = {**os.environ, "PYTHONPATH": str(target), "DOTENV_DISABLED": "1", "BLINDSPOT_WORKSPACE": "",
                "BLINDSPOT_WHEEL_ROOT": str(target), "BLINDSPOT_PROVIDER": "mock",
                "BLINDSPOT_PLANNER": "heuristic", "BLINDSPOT_DATASET": "synthetic",
                "LIVE_API_ENABLED": "false", "BLINDSPOT_ALLOWED_HOSTS": "testserver",

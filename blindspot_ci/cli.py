@@ -4,13 +4,48 @@ import argparse
 import json
 import os
 import sys
+from pathlib import Path
 
 import uvicorn
 
-from blindspot_ci.config import Settings
-from blindspot_ci.data import load_scenarios
-from blindspot_ci.factory import build_agent
 from blindspot_ci.media import file_to_data_url
+from blindspot_ci.workspace import default_path
+
+
+def Settings():
+    """Defer configuration until explicit CLI workspace/mock options are applied."""
+    from blindspot_ci.config import Settings as Configuration
+    return Configuration()
+
+
+def load_scenarios():
+    from blindspot_ci.data import load_scenarios as load
+    return load()
+
+
+def build_agent(*args, **kwargs):
+    from blindspot_ci.factory import build_agent as build
+    return build(*args, **kwargs)
+
+
+def _port(value: str) -> int:
+    try:
+        port = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("port must be an integer between 1 and 65535") from exc
+    if not 1 <= port <= 65535:
+        raise argparse.ArgumentTypeError("port must be between 1 and 65535")
+    return port
+
+
+def _allow_live(cfg, write=print) -> bool:
+    if not cfg.model_api_key:
+        write("MODEL_API_KEY is not set.")
+        return False
+    if not cfg.live_api_enabled:
+        write("Live calls are disabled. Explicitly enable LIVE_API_ENABLED for an authorized live check.")
+        return False
+    return True
 
 
 def run_experiment(steps: int, planner: str | None) -> int:
@@ -18,7 +53,7 @@ def run_experiment(steps: int, planner: str | None) -> int:
 
     try:
         report = build_experiment(planner=planner).run(steps)
-    except (PermissionError, FileNotFoundError, ValueError) as exc:
+    except (PermissionError, OSError, ValueError, TypeError, KeyError) as exc:
         print(exc)
         return 2
     print(f"mode: {report['mode']} | planner: {report['planner']} | dataset: {report['dataset']['type']}")
@@ -39,13 +74,11 @@ def run_experiment(steps: int, planner: str | None) -> int:
 def live_run(args) -> int:
     """Run the whole agent loop against the live API on one local image."""
     import dataclasses
-    from pathlib import Path
 
     from blindspot_ci.data import build_custom_scenario
 
     cfg = Settings()
-    if not cfg.model_api_key:
-        print("MODEL_API_KEY is not set. Put it in .env on your computer.")
+    if not _allow_live(cfg):
         return 2
     try:
         scenario = build_custom_scenario(file_to_data_url(args.image_file),
@@ -55,8 +88,8 @@ def live_run(args) -> int:
         return 2
     cfg = dataclasses.replace(cfg, provider="meta", planner=args.planner)
     report = build_agent(cfg).run(scenario)
-    out = Path("artifacts") / f"live_run_{report.run_id}.json"
-    out.parent.mkdir(exist_ok=True)
+    out = default_path("artifacts") / f"live_run_{report.run_id}.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(report.model_dump(), indent=2), encoding="utf-8")
     print(f"status: {report.status} | planner: {report.planner} | calls: {report.calls} | "
           f"estimated cost: ${report.estimated_cost_usd:.4f}")
@@ -96,14 +129,10 @@ def diagnose() -> int:
         sys.stdout.write(text)
 
     cfg = Settings()
-    if not cfg.model_api_key:
-        safe_print("MODEL_API_KEY is not set.")
+    if not _allow_live(cfg, safe_print):
         return 2
     key, base = cfg.model_api_key, cfg.meta_base_url.rstrip("/")
-    safe_print(f"key length {len(key)}, starts with 'LLM_' (official format): {key.startswith('LLM_')}, "
-               f"starts with 'LLM|' (old format): {key.startswith('LLM|')}, underscores {key.count('_')}, "
-               f"pipes {key.count('|')}, hyphens {key.count('-')}, letters/digits only: {key.isalnum()}, "
-               f"base {base}\n")
+    safe_print("Credential configured. Its value and structure are not displayed.")
     fake = "LLM|0|invalidinvalidinvalid"
     body = {"input": "Return the word READY.", "store": False, "max_output_tokens": 16}
     safe_print("1) Fake key, model muse-spark-1.3:")
@@ -128,8 +157,7 @@ def smoke_text() -> int:
     from blindspot_ci.providers.meta import MetaApiError, MetaMuseSparkAdapter
 
     cfg = Settings()
-    if not cfg.model_api_key:
-        print("MODEL_API_KEY is not set. Put it in .env on your computer.")
+    if not _allow_live(cfg):
         return 2
     adapter = MetaMuseSparkAdapter(cfg.model_api_key, cfg.meta_base_url)
     adapter.model = cfg.text_model
@@ -149,8 +177,7 @@ def smoke_tools() -> int:
     from blindspot_ci.providers.meta import MetaApiError
 
     cfg = Settings()
-    if not cfg.model_api_key:
-        print("MODEL_API_KEY is not set. Put it in .env on your computer.")
+    if not _allow_live(cfg):
         return 2
     dataset = load_named_dataset("synthetic")
     public = {cid: public_case(case) for cid, case in dataset.cases.items()}
@@ -221,7 +248,6 @@ def corrupt_gen(args) -> int:
 
 
 def write_card(args) -> int:
-    from pathlib import Path
 
     from blindspot_ci.experiment.card import build_card
     from blindspot_ci.experiment.reviews import load_extras
@@ -233,7 +259,7 @@ def write_card(args) -> int:
     except (ValueError, FileNotFoundError) as exc:
         print(f"card failed: {exc}")
         return 1
-    out = Path(args.out) if args.out else Path("artifacts") / f"evaluation-card-{args.run}.md"
+    out = Path(args.out) if args.out else default_path("artifacts") / f"evaluation-card-{args.run}.md"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(build_card(run), encoding="utf-8")
     print(f"Evaluation card written to {out}")
@@ -242,7 +268,6 @@ def write_card(args) -> int:
 
 def release_gate(args) -> int:
     """Exit 0 GO_CANDIDATE, 1 NO_GO, 2 NEEDS_REVIEW, 3 DEMO_ONLY, 4 input error."""
-    from pathlib import Path
 
     from blindspot_ci.experiment import release_gate as rg
 
@@ -289,7 +314,6 @@ def slice_tests(args) -> int:
 
 
 def _raw_source(path: str, sequence: str):
-    from pathlib import Path
 
     source = Path(path)
     if source.is_file():
@@ -305,7 +329,6 @@ def _raw_source(path: str, sequence: str):
 
 
 def long_video(args) -> int:
-    from pathlib import Path
 
     from blindspot_ci.experiment.temporal import load_manifest, plan_long_video, run_long_video
 
@@ -482,7 +505,6 @@ def replay_planner(args) -> int:
 
 
 def transcribe_note(args) -> int:
-    from pathlib import Path
 
     from blindspot_ci import factory
     from blindspot_ci.experiment.reviews import add_note
@@ -523,7 +545,6 @@ def audit_run(args) -> int:
 
 def smoke_models(wav: str | None) -> int:
     """One tiny live call each to Muse Wonder, Muse Image and Muse Voice Transcribe."""
-    from pathlib import Path
 
     from blindspot_ci import factory
     from blindspot_ci.providers.meta import MetaApiError
@@ -561,8 +582,7 @@ def smoke_sam(image_url: str | None, image_file: str | None, prompt: str) -> int
     from blindspot_ci.providers.meta import MetaApiError, MetaSam31Adapter
 
     cfg = Settings()
-    if not cfg.model_api_key:
-        print("MODEL_API_KEY is not set. Put it in .env on your computer.")
+    if not _allow_live(cfg):
         return 2
     try:
         image_url = file_to_data_url(image_file) if image_file else image_url
@@ -591,15 +611,25 @@ def smoke_sam(image_url: str | None, image_file: str | None, prompt: str) -> int
     return 0 if result.parser_status == "structured" else 1
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(prog="blindspot")
+def _main() -> None:
+    parser = argparse.ArgumentParser(prog="blindspot", description="Inspect vision-model failures and preserve reviewable evidence.")
+    parser.add_argument("--workspace", type=Path, help="initialized directory for datasets, runs and cache")
+    parser.add_argument("--mock", dest="mock_mode", action="store_true", help="force offline practice; disable dotenv and live calls")
     sub = parser.add_subparsers(dest="command", required=True)
-    sub.add_parser("demo")
+    init = sub.add_parser("init", help="create a user-owned workspace with public practice fixtures")
+    init.add_argument("path", type=Path)
+    doctor = sub.add_parser("doctor", help="check local configuration, assets and storage without network calls")
+    doctor.add_argument("--json", action="store_true", help="machine-readable diagnostic output")
+    doctor.add_argument("--mock", dest="mock_mode", action="store_true", default=argparse.SUPPRESS)
+    sub.add_parser("demo", help="run a scripted scenario; not a model-performance measurement")
     run = sub.add_parser("run-fixture")
     run.add_argument("--scenario", default="warehouse_001")
     run.add_argument("--image-url", help="public https image to use instead of the fixture value")
     run.add_argument("--image-file", help="local jpg/png/webp, sent to the API as a data URL")
-    sub.add_parser("serve")
+    serve = sub.add_parser("serve", help="start the local web workspace")
+    serve.add_argument("--host", default=os.getenv("BLINDSPOT_HOST", "127.0.0.1"))
+    serve.add_argument("--port", type=_port, default=os.getenv("BLINDSPOT_PORT", "8000"))
+    serve.add_argument("--mock", dest="mock_mode", action="store_true", default=argparse.SUPPRESS)
     imp = sub.add_parser("import-photos", help="import human-labeled photos into the private real dataset")
     imp.add_argument("labels_json")
     imp.add_argument("--force", action="store_true")
@@ -607,6 +637,7 @@ def main() -> None:
     exp = sub.add_parser("experiment", help="case-based experiment: planner picks tests, SAM observes, Python scores")
     exp.add_argument("--steps", type=int, default=5)
     exp.add_argument("--planner", choices=["mock", "muse"], default=None)
+    exp.add_argument("--mock", dest="mock_mode", action="store_true", default=argparse.SUPPRESS)
     live = sub.add_parser("live-run", help="full agent run on your own image with human-verified truth")
     live.add_argument("--image-file", required=True)
     live.add_argument("--probes", required=True, help="comma list, e.g. person,bus,stop_sign")
@@ -689,16 +720,42 @@ def main() -> None:
     smoke.add_argument("--image-file", help="local jpg/png/webp, sent as a data URL (avoids robots.txt problems)")
     smoke.add_argument("--prompt", default="person")
     args = parser.parse_args()
+    if args.mock_mode:
+        os.environ.update(DOTENV_DISABLED="1", BLINDSPOT_PROVIDER="mock",
+                          BLINDSPOT_PLANNER="heuristic", LIVE_API_ENABLED="false",
+                          BLINDSPOT_DATASET="synthetic")
+        if getattr(args, "planner", None) == "muse":
+            parser.error("--mock cannot be combined with --planner muse")
+    if args.workspace:
+        os.environ["BLINDSPOT_WORKSPACE"] = str(args.workspace.expanduser().resolve())
+    if args.command == "init":
+        from blindspot_ci.workspace import initialize
+        root = initialize(args.path)
+        print(f"Workspace ready: {root}")
+        print(f'Next: blindspot --workspace "{root}" serve --mock')
+        return
+    if args.command == "doctor":
+        from blindspot_ci.doctor import inspect_setup
+        report = inspect_setup()
+        if args.json:
+            print(json.dumps(report, indent=2))
+        else:
+            for check in report["checks"]:
+                print(f'{check["status"]}  {check["name"]}: {check["detail"]}')
+            print("No network or model calls were made.")
+        raise SystemExit(0 if report["ok"] else 2)
+    if os.environ.get("BLINDSPOT_WORKSPACE"):
+        from blindspot_ci.workspace import validate_workspace
+        validate_workspace(Path(os.environ["BLINDSPOT_WORKSPACE"]).expanduser().resolve())
     if args.command == "serve":
-        host = os.environ.get("BLINDSPOT_HOST", "127.0.0.1")
-        port = int(os.environ.get("BLINDSPOT_PORT", "8000"))
-        if host not in {"127.0.0.1", "localhost", "::1"} and Settings().live_api_enabled:
+        cfg = Settings()
+        host, port = args.host, args.port
+        if host not in {"127.0.0.1", "localhost", "::1"} and cfg.live_api_enabled:
             raise SystemExit("refusing to serve a live key on a public address: set LIVE_API_ENABLED=false "
                              "or bind BLINDSPOT_HOST=127.0.0.1")
         uvicorn.run("blindspot_ci.api:app", host=host, port=port, reload=False)
         return
     if args.command == "import-photos":
-        from pathlib import Path
 
         from blindspot_ci.experiment.importer import import_labeled
 
@@ -713,7 +770,6 @@ def main() -> None:
     if args.command == "live-run":
         raise SystemExit(live_run(args))
     if args.command == "label":
-        from pathlib import Path
 
         from blindspot_ci.labeler import create_app
 
@@ -813,6 +869,15 @@ def main() -> None:
         scenario = scenario.model_copy(update={"image_url": image})
     report = build_agent().run(scenario)
     print(json.dumps(report.model_dump(), indent=2))
+
+
+def main() -> None:
+    try:
+        _main()
+    except (ValueError, OSError, TypeError, KeyError) as exc:
+        print(f"Cannot complete command: {exc}", file=sys.stderr)
+        print("Run blindspot doctor --mock to check local setup.", file=sys.stderr)
+        raise SystemExit(2) from exc
 
 
 if __name__ == "__main__":

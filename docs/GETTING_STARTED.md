@@ -6,7 +6,7 @@
 
 Follow the [Windows or macOS/Linux quick start](../README.md#quick-start). You need Git, Python 3.11 or newer and internet access to install dependencies. The first run uses bundled drawings and scripted answers, so no GPU or model credential is needed.
 
-Use the Python executable inside the virtual environment directly. This avoids shell activation issues on Windows. Keep DOTENV_DISABLED=1, BLINDSPOT_PROVIDER=mock, BLINDSPOT_PLANNER=heuristic, BLINDSPOT_DATASET=synthetic and LIVE_API_ENABLED=false for this walkthrough.
+Use the Python executable inside the virtual environment directly. This avoids shell activation issues on Windows. The quick start creates a separate workspace and uses --mock, which disables dotenv loading and live calls before configuration loads. See the [developer guide](DEVELOPER_GUIDE.md) for workspace storage and imports.
 
 The server starts at [the home page](http://127.0.0.1:8000/). Open [the workspace](http://127.0.0.1:8000/app) to begin.
 
@@ -46,7 +46,7 @@ The [evaluation protocol](EVALUATION_PROTOCOL.md) explains sample limitations an
 | Python is missing or too old | Install Python 3.11 or newer, then recreate the virtual environment |
 | Windows blocks activation | Use .venv/Scripts/python.exe directly, as in the quick start |
 | A dependency is missing | Run the editable install using the same virtual-environment Python used to start the app |
-| Port 8000 is occupied | Set BLINDSPOT_PORT to an unused port before starting the server, then open that port |
+| Port 8000 is occupied | Pass --port with an unused port when starting the server, then open that port |
 | A saved report has no photograph | Read the missing-photo notice; do not interpret a box-only view as a loaded image |
 | The practice result says DEMO_ONLY | Expected: it is a scripted software demonstration |
 | A release-gate command exits with code 1 | Read its policy decision; NO_GO is an intentional result |
@@ -54,11 +54,10 @@ The [evaluation protocol](EVALUATION_PROTOCOL.md) explains sample limitations an
 To use port 8055 in PowerShell:
 
 ```powershell
-$env:BLINDSPOT_PORT = "8055"
-.\.venv\Scripts\python.exe -m blindspot_ci.cli serve
+.\.venv\Scripts\python.exe -m blindspot_ci.cli --workspace ../blindspot-workspace serve --mock --port 8055
 ```
 
-On macOS or Linux use export BLINDSPOT_PORT=8055 and the .venv/bin/python executable.
+On macOS or Linux use the .venv/bin/python executable. BLINDSPOT_PORT remains supported for existing setups.
 
 ## Development and live operation
 

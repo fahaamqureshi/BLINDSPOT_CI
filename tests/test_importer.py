@@ -24,6 +24,58 @@ def entry(image, case_id="tray_001", **truth):
             "label_provenance": {"annotator": "Tester", "labeled_at": "2026-11-01"}}
 
 
+def test_collision_in_later_case_does_not_partially_import(tmp_path):
+    datasets = tmp_path / "datasets"
+    (datasets / "real").mkdir(parents=True)
+    existing = datasets / "real" / "second.png"
+    existing.write_bytes(b"owner data")
+    source = photo(tmp_path / "source.png")
+    with pytest.raises(FileExistsError):
+        import_labeled(labels(tmp_path, [entry(source, "first"), entry(source, "second")]), datasets)
+    assert not (datasets / "real" / "first.png").exists()
+    assert existing.read_bytes() == b"owner data"
+    assert not (datasets / "real_manifest.json").exists()
+
+
+def test_oversized_replacement_preserves_existing_import(tmp_path, monkeypatch):
+    from blindspot_ci.experiment import importer
+
+    datasets = tmp_path / "datasets"
+    datasets.mkdir()
+    source = photo(tmp_path / "source.png")
+    import_labeled(labels(tmp_path, [entry(source, "original")]), datasets)
+    old = (datasets / "real_manifest.json").read_bytes()
+    monkeypatch.setattr(importer, "MAX_IMAGE_BYTES", 1)
+    with pytest.raises(ValueError, match="stored image"):
+        import_labeled(labels(tmp_path, [entry(source, "replacement")]), datasets, force=True)
+    assert (datasets / "real_manifest.json").read_bytes() == old
+    assert not (datasets / "real" / "replacement.png").exists()
+
+
+def test_relative_image_source_is_relative_to_labels_file(tmp_path, monkeypatch):
+    photo(tmp_path / "source.png")
+    item = entry("source.png")
+    label_file = labels(tmp_path, [item])
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+    assert import_labeled(label_file, tmp_path / "datasets") == 1
+
+
+def test_force_import_records_source_hash_before_reencoding_in_place(tmp_path):
+    from blindspot_ci.experiment.cases import sha256_file
+
+    datasets = tmp_path / "datasets"
+    (datasets / "real").mkdir(parents=True)
+    source = photo(datasets / "real" / "tray_001.jpg")
+    digest = sha256_file(source)
+    import_labeled(labels(tmp_path, [entry(source)]), datasets, force=True)
+    case = json.loads((datasets / "real_manifest.json").read_text())["cases"][0]
+    assert case["source_sha256"] == digest
+    assert case["image_sha256"] == sha256_file(source)
+    assert case["image_sha256"] != digest
+
+
 def test_import_writes_manifest_with_hashes_and_loads(tmp_path):
     datasets = tmp_path / "datasets"
     datasets.mkdir()

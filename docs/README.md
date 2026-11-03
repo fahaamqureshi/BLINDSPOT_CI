@@ -7,6 +7,7 @@ Start with the [product README](../README.md). It explains what BLINDSPOT CI doe
 | Guide | Purpose |
 | --- | --- |
 | [First walkthrough](GETTING_STARTED.md) | Install, run five practice cases, inspect evidence and export |
+| [Developer guide](DEVELOPER_GUIDE.md) | Isolated workspace, offline diagnostics, imports, CLI and extension boundaries |
 | [Architecture](ARCHITECTURE.md) | Follow the browser, agent, model, scoring and storage boundaries |
 | [Simple explanation](explainer-simple.md) | Additional background on the evaluation problem |
 | [Dataset preparation](dataset.md) | Prepare local cases and human references |
@@ -41,6 +42,7 @@ These pages record specific past executions. They do not enable live calls or pr
 | Guide | Purpose |
 | --- | --- |
 | [API contracts](API_CONTRACTS.md) | Request, response and error expectations |
+| [Developer-readiness audit](DEVELOPER_READINESS_AUDIT.md) | Reproduced setup and backend issues, fixes and verification scope |
 | [Agent workflow](agent-workflow.md) | Test selection and tool-loop design |
 | [Design](design.md) | Implementation background |
 | [Frontend review](FRONTEND_REVIEW.md) | Current interface changes and verification |

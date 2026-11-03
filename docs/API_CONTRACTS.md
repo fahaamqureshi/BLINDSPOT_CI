@@ -87,3 +87,8 @@ Budget guard (`blindspot_ci/budget.py`): reserve raises before a call when the c
 - Additive fields may appear in run JSON; consumers should ignore unknown keys. The gate rejects unknown policy keys on purpose.
 - The committed example run ids a165cd6773cd433a (COCO) and 8f6003378706480a (DAVIS) are stable fixtures. The long video run id is not stable across rebuilds: a replay always gets a new id.
 - Dataset names are a fixed set: synthetic, real, open, hard, video, coco, generated, corrupted. An unknown name is an error with the valid set in the message.
+## Workspace configuration and setup errors
+
+For a separate data workspace, start the server with blindspot --workspace PATH serve --mock. Set BLINDSPOT_WORKSPACE before imports when using an ASGI server directly. Restart the process to change workspaces. Public practice assets are supplied by blindspot init PATH.
+
+The API returns HTTP 503 with a configuration message when a provider, planner, numeric threshold or boolean setting is invalid. A missing default dataset returns HTTP 404. Malformed manifest structure returns HTTP 422. These are setup and input errors, not model failures. Use blindspot doctor --mock for offline diagnostics; it makes no network calls.

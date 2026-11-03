@@ -5,6 +5,7 @@ import json
 import math
 import shutil
 from datetime import datetime, timezone
+from io import BytesIO
 from pathlib import Path
 from typing import Any
 
@@ -71,6 +72,8 @@ def _check_label(case: dict[str, Any], original: tuple[int, int]) -> None:
     elif box is not None:
         raise ValueError(f"{case_id}: only visible cases may have a box")
     provenance = case.get("label_provenance", {})
+    if not isinstance(provenance, dict):
+        raise TypeError(f"{case_id}: label_provenance must be an object")
     missing = [k for k in REQUIRED_PROVENANCE if not provenance.get(k)]
     if missing:
         raise ValueError(f"{case_id}: label_provenance needs {', '.join(missing)}")
@@ -93,6 +96,8 @@ def import_labeled(labels_json: Path, datasets: Path = DATASETS, force: bool = F
     if name not in KINDS:
         raise ValueError(f"dataset name must be one of {sorted(KINDS)}")
     source = json.loads(labels_json.read_text(encoding="utf-8"))
+    if not isinstance(source, dict):
+        raise TypeError("the labels file must be an object with a cases list")
     items = source.get("cases")
     if not isinstance(items, list) or not items:
         raise ValueError("the labels file needs a non-empty 'cases' list")
@@ -100,46 +105,64 @@ def import_labeled(labels_json: Path, datasets: Path = DATASETS, force: bool = F
     if manifest_path.exists() and not force:
         raise FileExistsError(f"{name}_manifest.json exists. Use --force to replace it on purpose.")
     seen: set[str] = set()
-    prepared: list[tuple[dict[str, Any], Image.Image, Path, Path]] = []
+    prepared = []
     for item in items:
+        if not isinstance(item, dict) or not isinstance(item.get("id"), str):
+            raise TypeError("each label needs an object with a string id")
+        if not isinstance(item.get("ground_truth"), dict):
+            raise TypeError(f"{item['id']}: ground_truth must be an object")
         case_id = item["id"]
         if not CASE_ID.match(case_id) or case_id in seen:
             raise ValueError(f"invalid or repeated case id: {case_id!r}")
         seen.add(case_id)
-        photo = Path(item["image_source"]).expanduser().resolve()
+        for key in ("title", "condition", "concept", "note"):
+            if key in item and not isinstance(item[key], str):
+                raise TypeError(f"{case_id}: {key} must be a string")
+        for key in ("condition", "concept"):
+            if key in item and not item[key].strip():
+                raise ValueError(f"{case_id}: {key} must not be empty")
+        photo = Path(item["image_source"]).expanduser()
+        if not photo.is_absolute():
+            photo = labels_json.resolve().parent / photo
+        photo = photo.resolve()
         if not photo.is_file() or photo.suffix.lower() not in IMAGE_SUFFIXES:
             raise ValueError(f"{case_id}: image_source must be an existing png or jpg file")
         image, original = _normalized(photo)
         _check_label(item, original)
-        prepared.append((item, image, photo, Path(f"{name}/{case_id}{photo.suffix.lower().replace('.jpeg', '.jpg')}")))
+        relative = Path(f"{name}/{case_id}{photo.suffix.lower().replace('.jpeg', '.jpg')}")
+        target = datasets / relative
+        if not target.resolve().is_relative_to(datasets.resolve()):
+            raise ValueError(f"{case_id}: import target leaves the dataset directory")
+        if target.exists() and not force:
+            raise FileExistsError(target)
+        encoded = BytesIO()
+        if target.suffix == ".png":
+            image.save(encoded, "PNG")
+        else:
+            image.convert("RGB").save(encoded, "JPEG", quality=92)
+        payload = encoded.getvalue()
+        if len(payload) > MAX_IMAGE_BYTES:
+            raise ValueError(f"{case_id}: stored image is over {MAX_IMAGE_BYTES:,} bytes; use a smaller photo")
+        prepared.append((item, relative, original, image.size, payload, sha256_file(photo)))
     for item in prepared:
         if item[0].get("recovery_case") and item[0]["recovery_case"] not in seen:
             raise ValueError(f"{item[0]['id']}: unknown recovery_case {item[0]['recovery_case']}")
 
     (datasets / name).mkdir(parents=True, exist_ok=True)
     cases: list[dict[str, Any]] = []
-    for item, image, photo, relative in prepared:
+    for item, relative, original, stored_size, payload, source_digest in prepared:
         target = datasets / relative
-        if target.exists() and not force:
-            raise FileExistsError(target)
-        if target.suffix == ".png":
-            image.save(target, "PNG")
-        else:
-            image.convert("RGB").save(target, "JPEG", quality=92)
-        if target.stat().st_size > MAX_IMAGE_BYTES:
-            target.unlink()
-            raise ValueError(f"{item['id']}: stored image is over {MAX_IMAGE_BYTES:,} bytes; use a smaller photo")
-        original = _normalized(photo)[1]
+        target.write_bytes(payload)
         truth = dict(item["ground_truth"])
         if truth.get("bbox"):
-            truth["bbox"] = _scaled_box(truth["bbox"], original, image.size)
+            truth["bbox"] = _scaled_box(truth["bbox"], original, stored_size)
         cases.append({
             "id": item["id"], "title": item.get("title", item["id"]), "image": relative.as_posix(),
             "condition": item.get("condition", "other"), "concept": item.get("concept", "red safety tag"),
             "ground_truth": truth, "recovery_case": item.get("recovery_case"),
             "note": item.get("note", ""), "label_provenance": item["label_provenance"],
-            "image_sha256": sha256_file(target), "source_sha256": sha256_file(photo),
-            "stored_size": list(image.size), "original_size": list(original),
+            "image_sha256": sha256_file(target), "source_sha256": source_digest,
+            "stored_size": list(stored_size), "original_size": list(original),
             **{key: item[key] for key in ("source_url", "license", "attribution") if key in item},
         })
     atomic_write_text(manifest_path, json.dumps({

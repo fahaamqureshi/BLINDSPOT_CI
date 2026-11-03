@@ -58,6 +58,8 @@ def box_iou(a: Box, b: Box) -> float:
 
 
 def score_case(case: InspectionCase, boxes: list[Box], min_iou: float = DEFAULT_MIN_IOU) -> CaseOutcome:
+    if not math.isfinite(min_iou) or not 0 <= min_iou <= 1:
+        raise ValueError("min_iou must be finite and between 0 and 1")
     if case.visibility == "unknown":
         return CaseOutcome(case.id, UNKNOWN, False, None,
                            "Labeled as not determinable from this image. Not scored.")

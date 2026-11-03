@@ -6,7 +6,7 @@ An agent-enabled evaluation workspace for vision engineers and QA teams. Test hu
 
 Muse Spark can choose the next test. SAM 3.1 produces predictions. Python calculates the scores. A person reviews the release decision.
 
-[Quick start](#quick-start) | [Architecture](docs/ARCHITECTURE.md) | [First walkthrough](docs/GETTING_STARTED.md) | [Judge overview](docs/HACKATHON_OVERVIEW.md) | [Documentation](docs/README.md)
+[Quick start](#quick-start) | [Developer guide](docs/DEVELOPER_GUIDE.md) | [Architecture](docs/ARCHITECTURE.md) | [Judge overview](docs/HACKATHON_OVERVIEW.md) | [Documentation](docs/README.md)
 
 ![BLINDSPOT CI workspace showing an explicitly scripted practice result and its evidence](docs/assets/workspace.png)
 
@@ -34,12 +34,9 @@ git clone https://github.com/fahaamqureshi/BLINDSPOT_CI.git
 cd BLINDSPOT_CI
 py -3 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -e .
-$env:DOTENV_DISABLED = "1"
-$env:BLINDSPOT_PROVIDER = "mock"
-$env:BLINDSPOT_PLANNER = "heuristic"
-$env:BLINDSPOT_DATASET = "synthetic"
-$env:LIVE_API_ENABLED = "false"
-.\.venv\Scripts\python.exe -m blindspot_ci.cli serve
+.\.venv\Scripts\python.exe -m blindspot_ci.cli init ../blindspot-workspace
+.\.venv\Scripts\python.exe -m blindspot_ci.cli --workspace ../blindspot-workspace doctor --mock
+.\.venv\Scripts\python.exe -m blindspot_ci.cli --workspace ../blindspot-workspace serve --mock
 ```
 
 ### macOS or Linux
@@ -49,17 +46,14 @@ git clone https://github.com/fahaamqureshi/BLINDSPOT_CI.git
 cd BLINDSPOT_CI
 python3 -m venv .venv
 .venv/bin/python -m pip install -e .
-export DOTENV_DISABLED=1
-export BLINDSPOT_PROVIDER=mock
-export BLINDSPOT_PLANNER=heuristic
-export BLINDSPOT_DATASET=synthetic
-export LIVE_API_ENABLED=false
-.venv/bin/python -m blindspot_ci.cli serve
+.venv/bin/python -m blindspot_ci.cli init ../blindspot-workspace
+.venv/bin/python -m blindspot_ci.cli --workspace ../blindspot-workspace doctor --mock
+.venv/bin/python -m blindspot_ci.cli --workspace ../blindspot-workspace serve --mock
 ```
 
 Open [the app](http://127.0.0.1:8000/app), keep Practice drawings selected, and press Run check. With the five-test limit, the deterministic fixture run produces three passes, one failure and one unknown. Its decision is DEMO_ONLY.
 
-Inspect the failure in Test evidence, add a note in Reviewer tools, then download the report. The [setup guide](docs/GETTING_STARTED.md) covers reopening results, port conflicts and development checks.
+Inspect the failure in Test evidence, add a note in Reviewer tools, then download the report. Your data and runs stay in the separate workspace. The --mock option disables dotenv loading and live calls before configuration loads. No environment file is needed. See the [developer guide](docs/DEVELOPER_GUIDE.md) for imports, commands, extension boundaries and troubleshooting.
 
 ## How the agent fits
 
@@ -130,9 +124,14 @@ NO_GO intentionally returns exit code 1. It is a policy result, not a crash. Run
 
 ## Development checks
 
-Keep the mock environment variables from Quick start, then run:
+Set a mock-only verification environment, then run:
 
 ```powershell
+$env:DOTENV_DISABLED = "1"
+$env:BLINDSPOT_PROVIDER = "mock"
+$env:BLINDSPOT_PLANNER = "heuristic"
+$env:BLINDSPOT_DATASET = "synthetic"
+$env:LIVE_API_ENABLED = "false"
 .\.venv\Scripts\python.exe -m pip install -e ".[dev]"
 .\.venv\Scripts\python.exe scripts/check.py
 .\.venv\Scripts\python.exe scripts/audit_mock.py
@@ -140,7 +139,7 @@ Keep the mock environment variables from Quick start, then run:
 .\.venv\Scripts\python.exe scripts/verify_wheel.py dist/blindspot_ci-0.1.0-py3-none-any.whl
 ```
 
-On macOS or Linux, replace the Python executable with .venv/bin/python. The completion gate covers lint, tests, documentation style, attribution and secret checks. The wheel check runs outside the checkout with live access disabled. GitHub Actions runs the completion and packaging checks on Python 3.11 and 3.13.
+On macOS or Linux, set the same environment values with export and replace the Python executable with .venv/bin/python. The completion gate covers lint, tests, documentation style, attribution and secret checks. The wheel check runs outside the checkout with live access disabled and exercises workspace initialization, offline diagnostics and practice evaluation. GitHub Actions runs the completion and packaging checks on Python 3.11 and 3.13.
 
 ## Repository map
 

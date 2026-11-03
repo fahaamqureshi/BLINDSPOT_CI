@@ -5,13 +5,13 @@ import threading
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.responses import FileResponse, PlainTextResponse, RedirectResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
 from blindspot_ci import factory
 from blindspot_ci.budget import BudgetExceeded, BudgetGuard
-from blindspot_ci.config import Settings
+from blindspot_ci.config import ConfigurationError, Settings
 from blindspot_ci.data import load_scenarios
 from blindspot_ci.experiment import release_gate
 from blindspot_ci.experiment.card import build_card
@@ -40,6 +40,12 @@ WEB = Path(__file__).parent / "web"
 EXAMPLES = RESOURCE_ROOT / "fixtures" / "examples"
 app = FastAPI(title="BLINDSPOT CI", version="0.1.0")
 install_local_guard(app)
+
+
+@app.exception_handler(ConfigurationError)
+async def configuration_error(request: Request, exc: ConfigurationError):
+    return JSONResponse(status_code=503, content={"detail": str(exc),
+        "help": "Run blindspot doctor --mock to inspect local setup."})
 
 
 class RunRequest(BaseModel):
@@ -225,6 +231,7 @@ def experiment(request: ExperimentRequest) -> dict[str, object]:
     if request.dataset:
         _dataset(request.dataset)
         cfg = dataclasses.replace(cfg, dataset=request.dataset)
+    _dataset(cfg.dataset)
     try:
         spends = cfg.provider == "meta" or cfg.planner == "muse"
         runner = build_experiment(cfg, budget_parent=_guard(cfg) if spends else None)

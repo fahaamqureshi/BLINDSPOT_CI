@@ -69,6 +69,18 @@ def sha256_file(path: Path) -> str:
 
 
 def _parse_case(item: dict[str, Any]) -> InspectionCase:
+    if not isinstance(item, dict):
+        raise TypeError("each dataset case must be an object")
+    for key in ("id", "image", "condition", "concept"):
+        if not isinstance(item.get(key), str) or not item[key].strip():
+            raise ValueError(f"each dataset case needs a non-empty string {key}")
+    if not isinstance(item.get("ground_truth"), dict):
+        raise TypeError(f"{item['id']}: ground_truth must be an object")
+    for key in ("title", "note", "recovery_case"):
+        if key in item and not isinstance(item[key], str) and not (key == "recovery_case" and item[key] is None):
+            raise ValueError(f"{item['id']}: {key} must be a string")
+    if not isinstance(item.get("label_provenance", {}), dict):
+        raise TypeError(f"{item['id']}: label_provenance must be an object")
     truth = item["ground_truth"]
     box = tuple(truth["bbox"]) if truth.get("bbox") else None
     return InspectionCase(
@@ -113,6 +125,8 @@ def _signature(manifest: Path, base: Path, parsed: list[InspectionCase]) -> tupl
 
 def load_dataset(manifest: Path, base: Path = DATASETS) -> Dataset:
     data = json.loads(manifest.read_text(encoding="utf-8"))
+    if not isinstance(data, dict) or not isinstance(data.get("cases"), list):
+        raise TypeError("dataset manifest must be an object with a cases list")
     items = [(item, _parse_case(item)) for item in data["cases"]]
     signature = _signature(manifest, base, [case for _, case in items])
     cached = _DATASET_CACHE.get((manifest.resolve(), base.resolve()))

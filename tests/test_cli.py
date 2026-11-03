@@ -60,6 +60,7 @@ def test_smoke_tools_reports_a_planner_failure(monkeypatch, capsys):
     from blindspot_ci.experiment import planners
 
     class Cfg:
+        live_api_enabled = True
         model_api_key = "LLM_a_b"
         meta_base_url = "https://example.invalid/v1"
         text_model = "muse-spark-1.3"
@@ -75,6 +76,7 @@ def test_smoke_tools_reports_a_planner_failure(monkeypatch, capsys):
 
 def test_diagnose_replaces_unencodable_reply(monkeypatch):
     class Cfg:
+        live_api_enabled = True
         model_api_key = "LLM_test_key"
         meta_base_url = "https://example.invalid/v1"
 

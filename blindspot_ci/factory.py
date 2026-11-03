@@ -3,7 +3,7 @@ from __future__ import annotations
 from blindspot_ci.agent import BlindspotAgent
 from blindspot_ci.budget import BudgetGuard
 from blindspot_ci.cache import JsonCache
-from blindspot_ci.config import Settings
+from blindspot_ci.config import ConfigurationError, Settings
 from blindspot_ci.experiment.cases import load_named_dataset
 from blindspot_ci.experiment.planners import CasePlanner, MockToolPlanner, MuseToolPlanner
 from blindspot_ci.experiment.runner import ExperimentRunner
@@ -66,6 +66,8 @@ def build_experiment(settings: Settings | None = None, planner: str | None = Non
     """Case-based experiment. Live calls need BLINDSPOT_PROVIDER=meta AND LIVE_API_ENABLED=true."""
     cfg = settings or Settings()
     dataset = load_named_dataset(cfg.dataset)
+    if planner is not None and planner not in {"mock", "heuristic", "muse"}:
+        raise ConfigurationError("planner must be heuristic, mock or muse.")
     budget = BudgetGuard(max_calls=cfg.max_calls, max_cost_usd=cfg.budget_usd, parent=budget_parent)
     wants_muse = (planner or cfg.planner) == "muse"
     if cfg.provider == "meta" or wants_muse:

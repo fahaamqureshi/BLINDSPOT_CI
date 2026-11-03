@@ -61,6 +61,8 @@ class ExperimentRunner:
         self.runs_dir, self.min_iou = runs_dir, min_iou
 
     def run(self, max_steps: int = 5) -> dict[str, Any]:
+        if not isinstance(max_steps, int) or isinstance(max_steps, bool) or max_steps < 1:
+            raise ValueError("max_steps must be a positive integer")
         run_id = uuid.uuid4().hex[:16]
         started = datetime.now(timezone.utc).isoformat()
         cases = self.dataset.cases
