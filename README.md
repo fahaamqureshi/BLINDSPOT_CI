@@ -23,6 +23,8 @@ The screenshot shows practice drawings and scripted answers. They demonstrate th
 
 The current application uses a dataset selector, local importer and local labeler. Browser photo upload and project creation are not implemented. Prepared video studies use the video and temporal-evaluation tools.
 
+Coding agents can run the same workflow through the CLI. Use install-skill to add the bundled workflow to a Codex or Claude Code project, then use experiment --json and report --json for machine-readable evidence. See [agent integration](docs/AGENT_INTEGRATION.md) for commands and tested boundaries.
+
 ## Quick start
 
 Requires Git and Python 3.11 or newer. The practice workflow needs no GPU or model credential and makes no model call. Installing dependencies requires internet access.

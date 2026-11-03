@@ -8,6 +8,7 @@ Start with the [product README](../README.md). It explains what BLINDSPOT CI doe
 | --- | --- |
 | [First walkthrough](GETTING_STARTED.md) | Install, run five practice cases, inspect evidence and export |
 | [Developer guide](DEVELOPER_GUIDE.md) | Isolated workspace, offline diagnostics, imports, CLI and extension boundaries |
+| [Agent integration](AGENT_INTEGRATION.md) | Codex and Claude Code project skills, JSON commands and harness boundaries |
 | [Architecture](ARCHITECTURE.md) | Follow the browser, agent, model, scoring and storage boundaries |
 | [Simple explanation](explainer-simple.md) | Additional background on the evaluation problem |
 | [Dataset preparation](dataset.md) | Prepare local cases and human references |

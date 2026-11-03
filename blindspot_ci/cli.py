@@ -48,7 +48,7 @@ def _allow_live(cfg, write=print) -> bool:
     return True
 
 
-def run_experiment(steps: int, planner: str | None) -> int:
+def run_experiment(steps: int, planner: str | None, as_json: bool = False) -> int:
     from blindspot_ci.factory import build_experiment
 
     try:
@@ -56,6 +56,9 @@ def run_experiment(steps: int, planner: str | None) -> int:
     except (PermissionError, OSError, ValueError, TypeError, KeyError) as exc:
         print(exc)
         return 2
+    if as_json:
+        print(json.dumps(report, indent=2))
+        return 1 if report["errors"] else 0
     print(f"mode: {report['mode']} | planner: {report['planner']} | dataset: {report['dataset']['type']}")
     for number, step in enumerate(report["steps"], start=1):
         outcome = step["outcome"]
@@ -618,6 +621,12 @@ def _main() -> None:
     sub = parser.add_subparsers(dest="command", required=True)
     init = sub.add_parser("init", help="create a user-owned workspace with public practice fixtures")
     init.add_argument("path", type=Path)
+    skill = sub.add_parser("install-skill", help="install the bundled CLI workflow into a Codex or Claude Code project")
+    skill.add_argument("--target", choices=["codex", "claude"], required=True)
+    skill.add_argument("--project", type=Path, required=True)
+    report = sub.add_parser("report", help="read an existing run without inference")
+    report.add_argument("--run", required=True)
+    report.add_argument("--json", action="store_true")
     doctor = sub.add_parser("doctor", help="check local configuration, assets and storage without network calls")
     doctor.add_argument("--json", action="store_true", help="machine-readable diagnostic output")
     doctor.add_argument("--mock", dest="mock_mode", action="store_true", default=argparse.SUPPRESS)
@@ -636,6 +645,7 @@ def _main() -> None:
     imp.add_argument("--dataset", choices=["real", "open", "hard", "video", "coco"], default="real")
     exp = sub.add_parser("experiment", help="case-based experiment: planner picks tests, SAM observes, Python scores")
     exp.add_argument("--steps", type=int, default=5)
+    exp.add_argument("--json", action="store_true", help="return the complete run as JSON")
     exp.add_argument("--planner", choices=["mock", "muse"], default=None)
     exp.add_argument("--mock", dest="mock_mode", action="store_true", default=argparse.SUPPRESS)
     live = sub.add_parser("live-run", help="full agent run on your own image with human-verified truth")
@@ -720,6 +730,10 @@ def _main() -> None:
     smoke.add_argument("--image-file", help="local jpg/png/webp, sent as a data URL (avoids robots.txt problems)")
     smoke.add_argument("--prompt", default="person")
     args = parser.parse_args()
+    if args.command == "install-skill":
+        from blindspot_ci.integrations import install_skill
+        print(f"Skill ready: {install_skill(args.project, args.target)}")
+        return
     if args.mock_mode:
         os.environ.update(DOTENV_DISABLED="1", BLINDSPOT_PROVIDER="mock",
                           BLINDSPOT_PLANNER="heuristic", LIVE_API_ENABLED="false",
@@ -766,7 +780,15 @@ def _main() -> None:
         print(f"Imported {count} human-labeled photos. Set BLINDSPOT_DATASET={args.dataset} to use them.")
         return
     if args.command == "experiment":
-        raise SystemExit(run_experiment(args.steps, args.planner))
+        raise SystemExit(run_experiment(args.steps, args.planner, args.json))
+    if args.command == "report":
+        from blindspot_ci.experiment.card import build_card
+        from blindspot_ci.experiment.reviews import load_extras
+        from blindspot_ci.experiment.runner import load_run
+        runs = Settings().runs_dir
+        run = {**load_run(runs, args.run), **load_extras(runs, args.run)}
+        print(json.dumps(run, indent=2) if args.json else build_card(run))
+        return
     if args.command == "live-run":
         raise SystemExit(live_run(args))
     if args.command == "label":

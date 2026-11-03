@@ -44,9 +44,14 @@ def command(*args):
     assert result.returncode == 0, result.stderr or result.stdout
     return result.stdout
 command("init", str(workspace))
+for agent, folder in (("codex", ".agents"), ("claude", ".claude")):
+    command("install-skill", "--project", str(workspace), "--target", agent)
+    assert (workspace / folder / "skills/blindspot-ci/SKILL.md").is_file()
 check = json.loads(command("--workspace", str(workspace), "doctor", "--mock", "--json"))
 assert check["ok"] and check["network_calls"] == 0
-command("--workspace", str(workspace), "experiment", "--mock", "--steps", "5")
+saved = json.loads(command("--workspace", str(workspace), "experiment", "--mock", "--steps", "5", "--json"))
+reopened = json.loads(command("--workspace", str(workspace), "report", "--run", saved["id"], "--json"))
+assert saved["id"] == reopened["id"] and saved["summary"] == reopened["summary"]
 assert len(list((workspace / "artifacts/runs").glob("*.json"))) == 1
 print(json.dumps({"installed_workspace": "PASS", "doctor": "PASS", "paid_calls": 0}))
 '''

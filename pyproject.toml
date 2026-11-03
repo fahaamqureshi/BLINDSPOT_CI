@@ -33,7 +33,7 @@ Issues = "https://github.com/fahaamqureshi/BLINDSPOT_CI/issues"
 include = ["blindspot_ci*"]
 
 [tool.setuptools.package-data]
-blindspot_ci = ["web/*.html", "web/*.css"]
+blindspot_ci = ["web/*.html", "web/*.css", "agent_skill/*.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
