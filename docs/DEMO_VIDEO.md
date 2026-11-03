@@ -1,6 +1,14 @@
-# Narrated judge demo revision
+# Three-minute submission demo revision
 
-The current film is C:/Users/faham/Downloads/BLINDSPOT_HACKATHON_DEMO_FINAL/BLINDSPOT-CI-judge-demo.mp4. The owner explicitly requested a polished, ordered hackathon-style revision and selected English narration. It is exactly 180 seconds, 1920 by 1080, 30 fps, H.264 with AAC English narration and quiet music.
+The latest cut is C:/Users/faham/Downloads/BLINDSPOT_CI_SUBMISSION_DEMO_2026-11-04/BLINDSPOT-CI-submission-demo.mp4. It explains the user problem before showing the current landing page, a new practice-workflow recording, human references, the agent loop, full-suite evidence and reviewer output. The camera experiment is omitted to keep the evaluation story focused. All five model responsibilities remain represented.
+
+The film is 180 seconds with English narration, burned captions and a second version with optional captions. The folder contains a chapter player, transcript, source credits, evaluation card, evidence references and editable local composition. Fresh interface captures use the current frontend. The real model scenes replay actual saved results; the practice scene uses labeled scripted fixtures. The original model reports are preserved.
+
+See [the tool comparison](DEMO_TOOL_REVIEW.md) for the assessment of Aidemo, DemoDay, Agentic Product Demo and Brag. Their workflow ideas informed the edit. No downloaded engine was executed, no new model request was made and no submission was uploaded. Rendering uses the existing local toolchain and the installed Microsoft Mark narrator. Validation and publication limitations accompany the delivery.
+
+## Earlier narrated judge demo revision
+
+The earlier narrated film is C:/Users/faham/Downloads/BLINDSPOT_HACKATHON_DEMO_FINAL/BLINDSPOT-CI-judge-demo.mp4. The owner explicitly requested a polished, ordered hackathon-style revision and selected English narration. It is exactly 180 seconds, 1920 by 1080, 30 fps, H.264 with AAC English narration and quiet music.
 
 Open http://127.0.0.1:8050/judge-demo/final-film/ while the recording server runs. The main portal links to this revision. The folder and separate ZIP contain the narrated film, music-only alternative, burned captions, SRT and VTT files, poster, transcript, chapter player, editable project, evaluation card, source credits, evidence references and validation report. The first movie remains available in its earlier folder.
 

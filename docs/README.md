@@ -21,6 +21,7 @@ Start with the [product README](../README.md). It explains what BLINDSPOT CI doe
 | [Demo script](DEMO_SCRIPT.md) | Detailed practice walkthrough and historical storyboard |
 | [Fresh demo guide](JUDGE_DEMO_GUIDE.md) | Local dataset and recorded model-study preparation |
 | [Demo video](DEMO_VIDEO.md) | Recording artifacts, narration and limitations |
+| [Demo-tool review](DEMO_TOOL_REVIEW.md) | Tool comparison and the latest three-minute film revision |
 | [Submission readiness](SUBMISSION_READINESS.md) | Remaining checks before an actual submission |
 
 ## Inspect recorded evidence
