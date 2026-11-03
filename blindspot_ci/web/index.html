@@ -209,14 +209,18 @@ function renderAll(run){
 function renderDetails(run,gate){
   const t=gate.traceability||{},sm=run.summary,p=gate.policy;
   const kv=[['Run id',run.id],['Source label',`${sourceLine(run.mode)} (${run.mode})`],['Test order',`${orderLine(run.planner)} (${run.planner})`],['Model',run.model],['Photos',`${datasetTitle(run.dataset.id)} (${run.dataset.id}, ${run.dataset.type})`],['How the labels were made',run.dataset.annotation_status],
+   ['Configured coverage',run.configured_case_ids?`${run.steps.length} of ${run.configured_case_ids.length} configured cases tested`:'Original case inventory not recorded'],['Why the run stopped',run.stop_detail||'Not recorded in this older report'],
    ['Overlap needed to pass',String(sm.min_iou)],['Calls and cost',`${run.calls} calls, about $${run.estimated_cost_usd}`],['Started',run.started_at],['Run file sha256',t.run_sha256||'n/a'],['Distinct photo hashes',String(t.distinct_image_hashes)],
-   ['Release gate rules',`version ${p.policy_version}, bar ${barText(p.min_pass_rate)} (${p.min_pass_rate}), ${p.min_cases_per_condition} photos per kind, ${p.min_judged_cases} photos before a miss counts`]];
+   ['Release gate rules',`version ${p.policy_version}, bar ${barText(p.min_pass_rate)} (${p.min_pass_rate}), ${p.min_cases_per_condition} photos per kind, ${p.min_judged_cases} scored cases before a condition can trigger NO_GO`]];
   const rng=Object.entries(sm.by_condition).map(([k,c])=>h('tr',{},h('th',{scope:'row'},kind(k)),h('td',{},c.scored?`${c.passed} of ${c.scored}`:'0 of 0'),h('td',{},c.scored?`${pct(c.pass_ci95[0])} to ${pct(c.pass_ci95[1])}`:'n/a'),h('td',{},c.scored<p.min_cases_per_condition?`Fewer than ${p.min_cases_per_condition} photos`:'Enough photos')));
   const chk=gate.checks.map(c=>h('tr',{},h('td',{},{PASS:'Passed',FAIL:'Failed',NA:'Not applicable'}[c.status]||c.status),h('th',{scope:'row'},c.name),h('td',{},c.detail)));
+  const trace=run.steps.map((step,index)=>{const decision=step.decision||{},prediction=step.prediction||{};return h('tr',{},h('td',{},String(index+1)),h('th',{scope:'row'},step.case.title),h('td',{},decision.reason||'No planner reason recorded'),h('td',{},decision.tool_call_id||'No model tool call recorded'),h('td',{},prediction.source||'No prediction'),h('td',{},statusText(step.outcome.status)))});
   $('details-body').replaceChildren(
    h('dl',{class:'kv'},...kv.flatMap(([a,b])=>[h('dt',{},a),h('dd',{},String(b))])),
+   h('h3',{class:'box-t'},'Recorded planner decisions'),h('p',{class:'small'},'These are the reasons and tool-call IDs saved for this run. Predictions execute on the server; Python computes the outcomes. Missing IDs are not invented.'),
+   h('div',{class:'tablewrap',tabindex:'0',role:'region','aria-label':'Recorded planner decisions'},table(['Step','Case','Planner reason','Tool-call ID','Prediction source','Python outcome'],trace,'Actual recorded planner decisions')),
    h('h3',{class:'box-t'},'Ranges'),h('details',{class:'what'},h('summary',{},'What is a Wilson interval?'),h('p',{},'It is a 95% range for the true pass rate, given how few photos were tested. A small group of photos gives a wide range on purpose.')),
-   h('div',{class:'tablewrap',tabindex:'0',role:'region','aria-label':'Ranges by kind of photo'},table(['Kind of photo','Found',h('span',{},'95% range ',h('small',{},'(',abbr('Wilson interval',WILSON_TIP),')')),'Photos'],rng,'Ranges by kind of photo')),
+   h('div',{class:'tablewrap',tabindex:'0',role:'region','aria-label':'Ranges by kind of photo'},table(['Kind of photo','Passed',h('span',{},'95% range ',h('small',{},'(',abbr('Wilson interval',WILSON_TIP),')')),'Photos'],rng,'Ranges by kind of photo')),
    h('h3',{class:'box-t'},'Every release gate check'),h('div',{class:'tablewrap',tabindex:'0',role:'region','aria-label':'Gate checks'},table(['Status','Check','Detail'],chk,'Release gate checks')))}
 
 /* advanced tools */

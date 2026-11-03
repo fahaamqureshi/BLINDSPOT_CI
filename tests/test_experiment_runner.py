@@ -43,7 +43,10 @@ def test_second_run_reads_the_cache_and_says_so():
 
 
 def test_max_steps_limits_the_run():
-    assert len(build_experiment().run(max_steps=2)["steps"]) == 2
+    report = build_experiment().run(max_steps=2)
+    assert len(report["steps"]) == 2
+    assert report["stop_reason"] == "step_limit_reached"
+    assert len(report["configured_case_ids"]) > len(report["steps"])
 
 
 def test_run_is_saved_and_reloadable(tmp_path):

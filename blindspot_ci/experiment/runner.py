@@ -70,17 +70,21 @@ class ExperimentRunner:
         outcomes: list[CaseOutcome] = []
         steps: list[dict[str, Any]] = []
         errors: list[str] = []
+        stop_reason, stop_detail = "step_limit_reached", "The configured test limit was reached."
         for _ in range(max_steps):
             if not remaining:
+                stop_reason, stop_detail = "suite_complete", "Every configured case was tested."
                 break
             try:
                 decision = self.planner.choose(public, remaining, history)
             except (PlannerError, BudgetExceeded, RuntimeError, ValueError) as exc:
                 errors.append(f"planner stopped the run: {self._clean(exc)}")
+                stop_reason, stop_detail = "planner_error", self._clean(exc)
                 break
             self.provenance.append({"event": "planner_decision", "run_id": run_id, "planner": decision.planner,
                                     "case_id": decision.case_id, "tool_call_id": decision.tool_call_id})
             if decision.case_id is None:
+                stop_reason, stop_detail = "planner_finished", decision.reason
                 break
             remaining.remove(decision.case_id)
             case = cases[decision.case_id]
@@ -93,6 +97,7 @@ class ExperimentRunner:
                 steps.append({"case": public[case.id], "decision": self._decision_view(decision),
                               "outcome": outcome.to_dict(), "prediction": None, "ground_truth": None})
                 outcomes.append(outcome)
+                stop_reason, stop_detail = "execution_error", message
                 break
             steps.append(step)
             outcome = CaseOutcome(**step["outcome"])
@@ -100,6 +105,8 @@ class ExperimentRunner:
             visible = {k: v for k, v in step["outcome"].items() if k != "case_id"}
             history.append({"case_id": case.id, **visible})
             self.planner.record_result(decision, step["outcome"])
+        if not remaining and not errors:
+            stop_reason, stop_detail = "suite_complete", "Every configured case was tested."
         report = {
             "id": run_id, "started_at": started, "finished_at": datetime.now(timezone.utc).isoformat(),
             "mode": self._run_mode(steps), "provider": self.provider.name,
@@ -109,6 +116,7 @@ class ExperimentRunner:
                         "annotation_status": self.dataset.annotation_status},
             "min_iou": self.min_iou, "steps": steps, "errors": errors,
             "configured_case_ids": sorted(cases),
+            "stop_reason": stop_reason, "stop_detail": stop_detail,
             "summary": summarize(outcomes, {cid: c.condition for cid, c in cases.items()}, self.min_iou),
             "calls": self.budget.calls, "estimated_cost_usd": round(self.budget.cost_usd, 6),
         }
