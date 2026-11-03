@@ -1,57 +1,51 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Result - BLINDSPOT CI</title>
+<title>Workspace - BLINDSPOT CI</title>
 <meta name="description" content="The saved result of a BLINDSPOT CI check: the release decision, why, and what to fix.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect x=%278%27 y=%278%27 width=%2716%27 height=%2716%27 fill=%27%23c8281c%27 transform=%27rotate(45 16 16)%27/%3E%3C/svg%3E">
-<link rel="stylesheet" href="/site.css">
-</head><body class="pending">
+<link rel="stylesheet" href="/site.css?v=workspace-2">
+</head><body class="workspace pending">
 <a class="skip" href="#main">Skip to content</a>
-<nav class="top" aria-label="Main"><div class="wrap"><b><i></i>BLINDSPOT CI</b>
- <a href="/">Home</a><a href="/app" aria-current="page">Example result</a><a href="/guide">How it works</a></div></nav>
+<nav class="top" aria-label="Main"><div class="wrap"><b><i></i>BLINDSPOT CI</b><a href="/">Home</a><a href="/app" aria-current="page">Workspace</a><a href="/guide">How it works</a><span class="mode-pill" id="connection">Connecting</span></div></nav>
+<main class="workspace-layout" id="main">
+<aside class="setup" aria-labelledby="setup-title">
+ <p class="eyebrow">YOUR NEXT CHECK</p><h2 id="setup-title">Test a vision model</h2>
+ <p class="small">Choose a photo set. Run a check. Review the evidence.</p>
+ <section id="tools" class="tools setup-form" aria-label="Test settings">
+ <label for="dataset">1. Photo set</label><select id="dataset" disabled><option>Loading photo sets</option></select>
+ <p class="small" id="dataset-help">Loading available tests.</p>
+ <label for="steps">2. Test limit</label><select id="steps"><option value="3">Up to 3 tests</option><option value="5" selected>Up to 5 tests</option><option value="8">Up to 8 tests</option></select>
+ <p class="mode-note" id="run-warn"></p>
+ <button id="run" disabled>Run check</button><p id="note" class="small" role="status" aria-live="polite"></p>
+ </section>
+ <div class="saved-picker"><p class="eyebrow">EXPLORE SAVED EVIDENCE</p><label for="example-select">Saved example</label><select id="example-select"><option value="">Choose an example</option></select><button id="load-example" class="secondary" disabled>Open example</button><p class="small">Previously saved results. Opening them makes no model call.</p></div>
+ <a class="help-link" href="/guide">How do checks work? <span aria-hidden="true">→</span></a>
+</aside>
+<div class="workspace-content">
+ <header class="workspace-heading"><div><p class="eyebrow">VISION RELIABILITY WORKSPACE</p><h1 id="title">Find the failures.<br>Understand the evidence.</h1><p id="meta" class="small">Start with the practice photos to explore the complete workflow.</p></div><span id="src" class="source-badge">No check selected</span></header>
+ <div id="welcome" class="welcome-card"><div class="welcome-symbol" aria-hidden="true">◎</div><p class="eyebrow">START HERE</p><h2>Your first check, in three steps.</h2><p>See where a vision model misses an object, inspect the result, and decide what to test next.</p><ol class="onboarding"><li><span>01</span><div><b>Choose your photos</b><p>Practice photos are ready to use. Their answers are scripted.</p></div></li><li><span>02</span><div><b>Run the check</b><p>Each prediction is compared with a label supplied by a person.</p></div></li><li><span>03</span><div><b>Review the evidence</b><p>See failures, unknown cases and next steps. Export a report to share.</p></div></li></ol><p class="welcome-hint">Ready? Press <b>Run check</b> in the settings panel.</p></div>
+ <div id="result-workspace" hidden>
+ <div id="summary-stats" class="summary-stats" aria-label="Test counts"></div>
+ <div class="view-tabs" role="tablist" aria-label="Result views"><button id="tab-overview" role="tab" aria-controls="panel-overview" aria-selected="true" tabindex="0" data-view="overview">Overview</button><button id="tab-evidence" role="tab" aria-controls="panel-evidence" aria-selected="false" tabindex="-1" data-view="evidence">Test evidence</button><button id="tab-technical" role="tab" aria-controls="panel-technical" aria-selected="false" tabindex="-1" data-view="technical">Technical details</button><button id="tab-advanced" role="tab" aria-controls="panel-advanced" aria-selected="false" tabindex="-1" data-view="advanced">Reviewer tools</button></div>
+ <div id="panel-overview" role="tabpanel" aria-labelledby="tab-overview" tabindex="0">
+ <div class="vb" id="verdict" role="status" tabindex="-1"></div>
+ <section id="why" aria-labelledby="why-h" hidden><div class="section-heading"><div><p class="eyebrow">COVERAGE</p><h2 id="why-h">Results by condition</h2></div></div><p id="why-intro" class="small"></p><table class="kinds"><caption class="vis">Result for each required condition</caption><thead><tr><th scope="col">Condition</th><th scope="col">Passed</th><th scope="col">Pass rate</th><th scope="col">Evidence quality</th></tr></thead><tbody id="why-rows"></tbody></table></section>
+ <section id="fix" aria-labelledby="fix-h" hidden><p class="eyebrow">NEXT STEPS</p><h2 id="fix-h">What to do next</h2><ol class="fix" id="fix-list"></ol></section>
+ </div>
+ <div id="panel-evidence" role="tabpanel" aria-labelledby="tab-evidence" tabindex="0" hidden>
+ <section id="evidence" aria-labelledby="ev-h" hidden><p class="eyebrow">FAILURE REVIEW</p><h2 id="ev-h">Inspect failed tests</h2><p id="ev-intro" class="small"></p><p class="legend"><span style="--c:var(--sam)">Model prediction</span><span style="--c:var(--human)">Human label (dashed)</span></p><ul class="evgrid" id="ev-grid"></ul><p><button class="btn alt sm" id="ev-more" hidden></button></p></section>
+ <section id="all"><h2>Every test in this run</h2><div id="all-body"></div></section>
+ </div>
+ <div id="panel-technical" role="tabpanel" aria-labelledby="tab-technical" tabindex="0" hidden><section id="details"><h2>How this result was measured</h2><p class="small">Source, thresholds and release policy checks for this saved run.</p><div id="details-body"></div></section></div>
+ <div id="panel-advanced" role="tabpanel" aria-labelledby="tab-advanced" tabindex="0" hidden><section><h2>Review and investigate</h2><p class="small">Save human observations or prepare follow-up tests. These tools never change the scores.</p>  <div class="tools" id="advanced"><div class="in">
+  <div class="box"><h3 class="box-t">Reviewer notes</h3>
+   <p class="small" id="note-help">Add a note about one photo of the loaded result. Notes save only on a run you make with Run check, not on the built-in examples.</p>
+   <label for="note-case">Photo <select id="note-case"></select></label><div id="note-host"></div></div>
 
-<main class="wrap" id="main">
-<header style="padding:28px 0 12px">
- <p class="kicker" id="src">Loading the saved result</p>
- <details class="what" id="srcdef"><summary>What is this?</summary><p>The source label says where the answers came from. LIVE_META means every answer came from a real call to SAM 3.1, a Meta model that outlines objects in photos. MOCK_FIXTURE means a script supplied the answers and no model was called.</p></details>
- <h1 id="title" class="h1s">Result</h1>
- <p class="small" id="meta"></p>
-</header>
-
-<div class="vb" id="verdict" role="status" tabindex="-1"><p class="vline">Loading the verdict.</p></div>
-
-<section id="why" aria-labelledby="why-h" hidden>
- <h2 id="why-h">Why</h2>
- <p class="small" id="why-intro"></p>
- <table class="kinds"><caption class="vis">Result for each required kind of photo</caption>
-  <thead><tr><th scope="col">Kind of photo</th><th scope="col">Passed</th><th scope="col">Against the bar</th><th scope="col">Result</th></tr></thead>
-  <tbody id="why-rows"></tbody></table>
-</section>
-
-<section id="fix" aria-labelledby="fix-h" hidden>
- <h2 id="fix-h">What to fix</h2>
- <ol class="fix" id="fix-list"></ol>
-</section>
-
-<section id="evidence" aria-labelledby="ev-h" hidden>
- <h2 id="ev-h">Evidence</h2>
- <p id="ev-intro" class="small"></p>
- <details class="what"><summary>What is overlap (IoU)?</summary><p>IoU means intersection over union. It is the area two boxes share divided by the area they cover together. 1.00 is a perfect match and 0.00 is no overlap.</p></details>
- <p class="legend"><span style="--c:var(--sam)">Model box</span><span style="--c:var(--human)">Box a person drew (dashed, with a ring when the box is small)</span></p>
- <ul class="evgrid" id="ev-grid"></ul>
- <p><button class="btn alt sm" id="ev-more" hidden></button></p>
-</section>
-
-<section aria-label="More detail" style="padding-top:20px">
- <details class="sec" id="all"><summary>All tests</summary><div class="in" id="all-body"></div></details>
- <details class="sec" id="details"><summary>Checking details (ranges, hashes, cost)</summary><div class="in" id="details-body"></div></details>
- <details class="sec tools" id="tools"><summary>Run a new check</summary><div class="in">
-  <p class="small" id="run-warn"></p>
-  <label for="dataset">Photos to test <select id="dataset"></select></label>
-  <label for="steps">Number of tests <select id="steps"><option>3</option><option selected>5</option><option>8</option></select></label>
-  <button id="run">Run check</button><p id="note" class="small" role="status"></p>
-
-  <details class="sec" id="advanced"><summary>Advanced tools</summary><div class="in">
-  <div class="box"><h3 class="box-t">Muse Image variants</h3>
+  <div class="box"><h3 class="box-t">Audit</h3>
+   <p class="small">Muse Wonder reads the saved results and writes a plain-language audit. It cannot change any score. Live mode only.</p><p class="small" id="audit-hint"></p>
+   <button id="audit-btn">Write audit with Muse Wonder</button><p class="small" id="audit-msg" role="status"></p><div class="audit" id="audit-out"></div></div>
+<div class="box"><h3 class="box-t">Muse Image variants</h3>
    <p class="small">Edits your labeled photos into harder kinds of photo with the Muse Image model. Boxes are inherited and the photos are marked GENERATED. About $0.01 per image, live mode only.</p>
    <div class="checks"><label><input type="checkbox" value="low_light" checked> low light</label><label><input type="checkbox" value="glare" checked> glare</label><label><input type="checkbox" value="motion_blur"> motion blur</label></div>
    <button id="stress" class="alt">Generate variants</button><p id="stressnote" class="small" role="status"></p></div>
@@ -63,21 +57,11 @@
   <div class="box"><h3 class="box-t">Models in this app</h3><div class="models" id="models"></div></div>
   <div class="box"><h3 class="box-t">Tests in this set</h3><div id="cases" class="small">Loading</div></div>
 
-  <div class="box"><h3 class="box-t">Reviewer notes</h3>
-   <p class="small" id="note-help">Add a note about one photo of the loaded result. Notes save only on a run you make with Run check, not on the built-in examples.</p>
-   <label for="note-case">Photo <select id="note-case"></select></label><div id="note-host"></div></div>
-
-  <div class="box"><h3 class="box-t">Audit</h3>
-   <p class="small">Muse Wonder reads the saved results and writes a plain-language audit. It cannot change any score. Live mode only.</p><p class="small" id="audit-hint"></p>
-   <button id="audit-btn">Write audit with Muse Wonder</button><p class="small" id="audit-msg" role="status"></p><div class="audit" id="audit-out"></div></div>
-  </div></details>
- </div></details>
-</section>
-</main>
-
-<footer><div class="wrap"><p>BLINDSPOT CI is a bounded evaluation, not a safety approval. A person always decides. Results hold for the listed model, photos and dates only.</p>
- <p class="srv" id="servermode"></p></div></footer>
-
+    </div></div></section></div>
+ </div>
+ <div id="page-error" class="page-error" role="alert" hidden></div>
+ <footer class="workspace-footer"><p>Evidence for a human decision. Never a safety certification.</p><p id="servermode" class="srv"></p></footer>
+</div></main>
 <script>
 const $=id=>document.getElementById(id);
 const NS='http://www.w3.org/2000/svg';
@@ -114,8 +98,8 @@ const STATUS={PASS:'Passed',FAIL_FALSE_NEGATIVE:'Missed',FAIL_FALSE_POSITIVE:'Fa
 const barText=r=>{const t=r*10;return Math.abs(t-Math.round(t))<1e-9?`${Math.round(t)} out of 10`:`${Math.round(r*100)} out of 100`};
 const times=(c,k)=>k==='absent'?`correctly found nothing ${c.passed} times out of ${c.scored}`:`found the object ${c.passed} times out of ${c.scored}`;
 function sourceLine(mode){
-  return {LIVE_META:'Live run, real answers from the model',CACHE_LIVE_META:'Live run, replayed from saved real answers',MIXED_CACHED_AND_LIVE_META:'Live run, part of it replayed from saved answers',
-   MOCK_FIXTURE:'Practice run, scripted answers',CACHE_MOCK_FIXTURE:'Practice run, scripted answers'}[mode]||'Source label: '+mode}
+  return {LIVE_META:'Saved live model result',CACHE_LIVE_META:'Saved live result, replayed',MIXED_CACHED_AND_LIVE_META:'Live result with cached answers',
+   MOCK_FIXTURE:'Practice result · Scripted answers',CACHE_MOCK_FIXTURE:'Practice result · Cached scripted answers'}[mode]||'Source label: '+mode}
 function orderLine(p){
   return p==='MOCK_POLICY'?'Tests ran in a set order.':p==='MUSE_SPARK_AGENT'?'An AI agent (Muse Spark) chose the order of the tests.':'Test order: '+p+'.'}
 const byCond=(run,gate)=>(run.summary&&run.summary.by_condition)||gate.conditions;
@@ -133,16 +117,15 @@ function sentence(run,gate){
 function renderHeader(run,gate){
   const title=datasetTitle(run.dataset.id);
   $('src').textContent=sourceLine(run.mode);
-  $('title').textContent='Result: '+title;document.title='Result: '+title+' - BLINDSPOT CI';
-  $('meta').textContent=`${run.steps.length} tests on ${title}. ${orderLine(run.planner)}`}
+  $('title').textContent=title;document.title=title+' - BLINDSPOT CI';
+  $('meta').textContent=`${run.steps.length} tests · ${orderLine(run.planner)} Run ${run.id}`;
+  const sm=run.summary;
+  $('summary-stats').replaceChildren(...[['Tests run',sm.tested],['Passed',sm.passed],['Failed',sm.failed],['Not scored',sm.unknown+sm.errors]].map(([label,value])=>h('div',{class:'stat'},h('span',{},label),h('strong',{},String(value)))))}
 
 function renderVerdict(run,gate){
   const L=LABEL[gate.decision]||[gate.decision,''],v=$('verdict');v.className='vb '+gate.decision;
-  const kids=[h('p',{class:'vlabel'},L[0],h('span',{class:'vcode'},`(${gate.decision})`)),h('p',{class:'vline'},L[1]),h('p',{class:'vsent'},sentence(run,gate))];
-  if(gate.decision==='DEMO_ONLY'&&gate.reason)kids.push(h('p',{class:'vmeta'},'Why: '+plainReason(gate.reason)));
-  const first=fixSteps(gate)[0];
-  if(first)kids.push(h('p',{class:'vnext'},'What to fix first: '+first[1]+' ',h('a',{href:'#fix'},'See all fixes')));
-  kids.push(h('p',{class:'vhuman'},'A person must still review this. This is not a safety approval.'),
+  const kids=[h('p',{class:'eyebrow'},'RELEASE CHECK'),h('p',{class:'vlabel'},L[0],h('span',{class:'vcode'},gate.decision)),h('p',{class:'vsent'},sentence(run,gate))];
+  kids.push(h('p',{class:'vmeta'},'A person must review the evidence. This is not a safety approval.'),
    h('a',{class:'btn sm',href:`/api/runs/${run.id}/card`,download:`report-${run.id}.md`},'Download report'));
   v.replaceChildren(...kids)}
 
@@ -152,15 +135,15 @@ function classify(k,c,p){
   const rate=c.passed/n;
   if(rate<bar){
     if(n>=p.min_judged_cases)return{cls:'bad',word:'Missed the bar',note:n<need?`And only ${n} photos, we want ${need}.`:''};
-    return{cls:'warn',word:'Too few photos',note:`${c.passed} of ${n} passed. The failed cases remain failures, but this sample is too small for a release decision. We want ${need}.`}}
-  if(n<need)return{cls:'ok',word:'OK',note:`But only ${n} photos, we want ${need}.`};
+    return{cls:'warn',word:'Failures observed',note:`${n-c.passed} failed. Test more cases before drawing a release conclusion.`}}
+  if(n<need)return{cls:'warn',word:'More evidence needed',note:`${n} tested; at least ${need} needed.`};
   const lo=c.pass_ci95&&c.pass_ci95[0];
-  if(lo!==undefined&&lo<bar)return{cls:'ok',word:'OK',note:`But the true rate could be as low as ${pct(lo)}.`};
-  return{cls:'ok',word:'OK',note:''}}
+  if(lo!==undefined&&lo<bar)return{cls:'warn',word:'Uncertain',note:`The estimated lower bound is ${pct(lo)}.`};
+  return{cls:'ok',word:'Meets the policy',note:''}}
 
 function renderWhy(run,gate){
   const p=gate.policy,bc=byCond(run,gate),rows=[];
-  $('why-intro').textContent=`Each row is one kind of photo. The line on each bar is our bar: ${barText(p.min_pass_rate)}. We want at least ${p.min_cases_per_condition} photos of each kind. Other kinds in this run are under All tests.`;
+  $('why-intro').textContent=`Policy target: ${pct(p.min_pass_rate)} passed and at least ${p.min_cases_per_condition} tests per required condition. A high pass rate alone is not enough evidence.`;
   for(const k of p.required_conditions){
     const c=Object.assign({},gate.conditions[k]||{},bc[k]||{}),n=c.scored||0,r=n?c.passed/n:0,cl=classify(k,c,p);
     const found=h('td',{'data-l':'Passed'},n?`${c.passed} of ${n}`:'0 of 0');
@@ -194,12 +177,12 @@ function boxSvg(st,w,ht,alt){
   if(gt)svg.append(s('rect',{x:gt[0],y:gt[1],width:gt[2]-gt[0],height:gt[3]-gt[1],fill:'none',stroke:'#8a5a00','stroke-width':sw,'stroke-dasharray':`${sw*3} ${sw*2}`}));
   for(const d of(st.prediction?st.prediction.detections:[]))if(d.bbox)svg.append(s('rect',{x:d.bbox[0],y:d.bbox[1],width:d.bbox[2]-d.bbox[0],height:d.bbox[3]-d.bbox[1],fill:'none',stroke:'#0b7c86','stroke-width':sw}));
   return svg}
-function photoSet(run){const id=run.dataset&&run.dataset.id;return PHOTO_SET[id]||(info.datasets.includes(id)?id:ds)}
+function photoSet(run){const id=run.dataset&&run.dataset.id;return PHOTO_SET[id]||(String(run.dataset.type).includes('SYNTHETIC')?'synthetic':info.datasets.includes(id)?id:ds)}
 function evidenceCard(st,run){
   const c=st.case,o=st.outcome,fn=o.status==='FAIL_FALSE_NEGATIVE',fp=o.status==='FAIL_FALSE_POSITIVE';
   const alt=`${c.title}, ${fn?'model missed it':fp?'model found something that is not there':'model box in the wrong place'}`;
   const box=h('div',{class:'evbox'}),svg=boxSvg(st,c.width,c.height,alt);box.append(svg);
-  const im=new Image();im.alt=alt;im.loading='lazy';
+  const im=new Image();im.alt=alt;im.loading='eager';
   im.onload=()=>{box.insertBefore(im,svg);svg.querySelectorAll('.evph,.evphtxt').forEach(e=>e.remove());svg.removeAttribute('role');svg.setAttribute('aria-hidden','true');svg.removeAttribute('aria-label')};
   im.src=`${c.image_url}?dataset=${encodeURIComponent(photoSet(run))}`;
   const hasGt=st.ground_truth&&st.ground_truth.bbox,hasPred=st.prediction&&st.prediction.detections.some(d=>d.bbox);
@@ -247,8 +230,10 @@ function noteBox(run,caseId){
   const draw=()=>list.replaceChildren(...run.reviewer_notes.filter(n=>n.case_id===caseId).map(n=>h('p',{class:'small'},n.text+(n.source==='typed'?' (typed)':' (spoken, Muse Voice Transcribe)'))));draw();
   const ta=h('textarea',{'aria-label':'Reviewer note',placeholder:'Is the dashed box on the object? Does the teal box match?',maxlength:'1000'});
   const save=h('button',{class:'alt'},'Save note'),rec=h('button',{class:'alt'},'Record voice note');
+  if(exampleIds.has(run.id)){ta.disabled=true;save.disabled=true}
+  if(!info.live_enabled||exampleIds.has(run.id)){rec.disabled=true;rec.title='Voice notes require live mode and a run you created.'}
   const add=n=>{run.reviewer_notes.push(n);draw()};
-  save.onclick=async()=>{if(!ta.value.trim())return;try{add(await api(`/api/runs/${run.id}/notes`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({case_id:caseId,text:ta.value})}));ta.value='';msg.textContent=''}catch(e){msg.textContent='Note failed: '+plainErr(e)}};
+  save.onclick=async()=>{if(!ta.value.trim()){msg.textContent='Write a note before saving.';return}save.disabled=true;try{add(await api(`/api/runs/${run.id}/notes`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({case_id:caseId,text:ta.value})}));ta.value='';msg.textContent='Note saved.'}catch(e){msg.textContent='Note failed: '+plainErr(e)}finally{save.disabled=false}};
   let mr=null,chunks=[];
   rec.onclick=async()=>{
     if(mr){mr.stop();return}
@@ -266,6 +251,7 @@ function renderTools(run){
   sel.onchange=draw;draw();
   $('audit-out').textContent=run.audit?run.audit.text:'';
   const isExample=exampleIds.has(run.id);
+  $('audit-btn').disabled=isExample||!info.live_enabled;
   $('note-help').textContent=isExample?'This result is a built-in example. Notes save only on a run you make with Run check, so this box is just for trying. Run a check first, then add your note.':'Add a note about one photo of the loaded result. Notes save with this run on this server.';
   $('audit-hint').textContent=isExample?'This result is a built-in example. Audits save only on a run you make with Run check. Run a check first, then write the audit.':(info&&info.mode==='MOCK_FIXTURE'?'This server is in mock mode. Audits need live mode, so this button will explain instead of writing. The scores above still stand.':'')}
 
@@ -273,40 +259,45 @@ async function render(run){
   run.reviewer_notes=run.reviewer_notes||[];cur=run;
   $('verdict').className='vb';$('verdict').replaceChildren(h('p',{class:'vline'},'Loading the verdict.'));
   const gate=await api(`/api/runs/${run.id}/release-gate`);
-  renderHeader(run,gate);renderVerdict(run,gate);renderWhy(run,gate);renderFix(gate);renderEvidence(run);renderAll(run);renderDetails(run,gate);renderTools(run)}
+  renderHeader(run,gate);renderVerdict(run,gate);renderWhy(run,gate);renderFix(gate);renderEvidence(run);renderAll(run);renderDetails(run,gate);renderTools(run);
+  $('welcome').hidden=true;$('result-workspace').hidden=false;$('page-error').hidden=true;showView('overview')}
 async function loadRun(id){
   try{await render(await api('/api/runs/'+encodeURIComponent(id)))}
   catch(e){fail('Could not open run '+id+' ('+e.message+'). Try the example result, or run a new check below.')}}
 function fail(msg){
-  $('src').textContent='No result loaded';$('verdict').className='vb';$('verdict').replaceChildren(h('p',{class:'vline',role:'alert'},msg));$('tools').open=true}
+  $('page-error').textContent=msg;$('page-error').hidden=false}
 
 async function loadCases(){
   const data=await api('/api/cases?dataset='+encodeURIComponent(ds));
+  $('dataset-help').textContent=`${data.cases.length} labeled cases available. The run stops when the limit or the end of the set is reached.`;
   $('cases').replaceChildren(...(data.cases.length?[h('p',{},`${data.cases.length} tests in this set.`),h('ul',{},...data.cases.map(c=>h('li',{},`${c.title} (${kind(c.condition)})`)))]:[document.createTextNode('No tests in this set. Pick another, or label your own photos (see the guide).')]))}
 function runWarn(){
-  $('run-warn').textContent=info.mode==='MOCK_FIXTURE'?'This server is in mock mode, so a new check only makes practice data: scripted answers that show the software works. It says nothing about any model.'
+  $('run-warn').textContent=info.mode==='MOCK_FIXTURE'?'Practice mode · Scripted answers. No model calls or cost.'
    :'This server is in live mode. A new check calls the Meta API and spends money, within the server budget.'}
-async function setDataset(name){ds=name;info=await api('/api/info?dataset='+encodeURIComponent(name));await loadCases();drawModels()}
+async function setDataset(name){$('run').disabled=true;$('dataset').disabled=true;$('note').textContent='Loading photo set';try{const next=await api('/api/info?dataset='+encodeURIComponent(name));info=next;ds=name;await loadCases();drawModels();runWarn();$('run').disabled=false;$('note').textContent=''}catch(e){$('note').textContent='Cannot use this photo set: '+plainErr(e)}finally{$('dataset').disabled=false}}
 async function init(){
   try{info=await api('/api/info')}catch(e){info=await api('/api/info?dataset=synthetic')}
   ds=info.datasets.includes(info.default_dataset)?info.default_dataset:'synthetic';
   $('servermode').textContent=`This server: ${info.mode==='MOCK_FIXTURE'?'mock mode (new checks only make practice data)':'live mode'}. Test order: ${info.planner}.`;
+  $('connection').textContent=info.mode==='MOCK_FIXTURE'?'Practice mode':'Live mode';
+  $('stress').disabled=!info.live_enabled;
+  if(!info.live_enabled){$('stressnote').textContent='Unavailable in practice mode. Use free measured corruptions below.'}
   datasetOptions(ds);
   runWarn();
   const q=new URLSearchParams(location.search);
   let id=q.get('run');
-  try{const ex=await api('/api/examples');ex.forEach(x=>exampleIds.add(x.id));if(!id)id=ex.length?(ex.find(x=>x.dataset==='coco-val2017')||ex[0]).id:null}catch(e){if(!id)id=null}
-  setDataset(ds).catch(e=>{$('cases').textContent='Could not list the tests: '+e.message});
+  try{const ex=await api('/api/examples');ex.forEach(x=>{exampleIds.add(x.id);$('example-select').append(h('option',{value:x.id},x.title))})}catch(e){$('example-select').options[0].textContent='Examples unavailable'}
+  await setDataset(ds);
   if(id)await loadRun(id);
-  else fail('There is no saved result to show yet. Run a new check below.')}
+  }
 $('dataset').addEventListener('change',e=>setDataset(e.target.value).catch(x=>{$('note').textContent=plainErr(x)}));
 $('run').addEventListener('click',async()=>{
-  const b=$('run');b.disabled=true;$('note').textContent='Running';
+  const b=$('run');b.disabled=true;$('dataset').disabled=true;$('steps').disabled=true;b.textContent='Running check…';$('note').textContent='Comparing predictions with the supplied labels.';b.setAttribute('aria-busy','true');
   try{const d=await api('/api/experiment',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({max_steps:Number($('steps').value),dataset:ds})});
-    used.add('sam-3.1');if(info.planner==='muse')used.add('muse-spark-1.3');
-    await render(d);history.replaceState(null,'','?run='+d.id);$('note').textContent='Done. Your new result is at the top of this page (run '+d.id+'). Look at the verdict first, then What to fix first.';
-    $('verdict').scrollIntoView();$('verdict').focus({preventScroll:true})}
-  catch(e){$('note').textContent='Error: '+plainErr(e)}finally{b.disabled=false}});
+    if(info.provider==='meta')used.add('sam-3.1');if(info.planner==='muse')used.add('muse-spark-1.3');
+    await render(d);history.replaceState(null,'','?run='+d.id);$('note').textContent='Check complete. Review the overview or open Test evidence.';
+    $('title').scrollIntoView({block:'start'});$('verdict').focus({preventScroll:true})}
+  catch(e){$('note').textContent='Check failed: '+plainErr(e)}finally{b.disabled=false;$('dataset').disabled=false;$('steps').disabled=false;b.textContent='Run check';b.removeAttribute('aria-busy')}});
 $('stress').addEventListener('click',async()=>{
   const b=$('stress'),edits=[...document.querySelectorAll('.checks input:checked')].map(i=>i.value),src=ds==='generated'?(info.datasets.includes('real')?'real':'synthetic'):ds;
   if(!edits.length){$('stressnote').textContent='Pick at least one edit.';return}
@@ -328,5 +319,13 @@ $('audit-btn').addEventListener('click',async()=>{
   if(!cur)return;const b=$('audit-btn');b.disabled=true;$('audit-msg').textContent='Muse Wonder is writing';
   try{const a=await api(`/api/runs/${cur.id}/audit`,{method:'POST'});$('audit-out').textContent=a.text;used.add('muse-wonder-1.0');drawModels();$('audit-msg').textContent='Written by '+a.model}
   catch(e){$('audit-msg').textContent='Audit failed: '+plainErr(e)}finally{b.disabled=false}});
-init().catch(e=>{fail('Cannot reach the server ('+e.message+'). Start it with python -m blindspot_ci.cli serve, then reload this page.');$('run').disabled=true;$('cases').textContent='Server not reachable.'}).finally(()=>document.body.classList.remove('pending'));
+function showView(view){
+  document.querySelectorAll('[data-view]').forEach(button=>{const active=button.dataset.view===view;button.setAttribute('aria-selected',String(active));button.tabIndex=active?0:-1;$('panel-'+button.dataset.view).hidden=!active})}
+const tabs=[...document.querySelectorAll('[data-view]')];
+tabs.forEach((button,index)=>{
+  button.onclick=()=>showView(button.dataset.view);
+  button.onkeydown=event=>{let next;if(event.key==='ArrowRight')next=(index+1)%tabs.length;else if(event.key==='ArrowLeft')next=(index+tabs.length-1)%tabs.length;else if(event.key==='Home')next=0;else if(event.key==='End')next=tabs.length-1;else return;event.preventDefault();tabs[next].click();tabs[next].focus()}});
+$('example-select').onchange=()=>{$('load-example').disabled=!$('example-select').value};
+$('load-example').onclick=async()=>{const id=$('example-select').value;if(!id)return;const button=$('load-example');button.disabled=true;button.textContent='Opening…';try{await loadRun(id);if(cur&&cur.id===id){history.replaceState(null,'','?run='+id);$('title').scrollIntoView({block:'start'})}}finally{button.disabled=false;button.textContent='Open example'}};
+init().catch(e=>{fail('Cannot reach the local server. Check that it is running, then refresh this page.');$('connection').textContent='Offline';$('run').disabled=true;$('cases').textContent='Server not reachable.'}).finally(()=>document.body.classList.remove('pending'));
 </script></body></html>

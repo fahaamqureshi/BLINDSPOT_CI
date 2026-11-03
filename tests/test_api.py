@@ -30,7 +30,7 @@ def test_first_screen_states_limitation():
 
 def test_site_pages_are_served():
     client = TestClient(app)
-    for path, marker in [("/", "BLINDSPOT CI"), ("/guide", "What we have not tested"), ("/app", "What to fix")]:
+    for path, marker in [("/", "BLINDSPOT CI"), ("/guide", "What we have not tested"), ("/app", "What to do next")]:
         response = client.get(path)
         assert response.status_code == 200 and marker in response.text, path
     assert client.get("/site.css").headers["content-type"].startswith("text/css")

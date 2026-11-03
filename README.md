@@ -9,6 +9,7 @@ Start here:
 - Import uses the local CLI and labeler. Project creation and browser photo upload are not implemented. Run from the repository checkout; the wheel alone does not distribute the datasets.
 
 - App: run `python -m blindspot_ci.cli serve`, then open http://127.0.0.1:8000/app
+- Workspace: choose a photo set and test limit in the visible settings panel, press Run check, then switch between Overview, Test evidence, Technical details and Reviewer tools. Historical results open only when selected explicitly.
 - How it works: http://127.0.0.1:8000/guide
 - Results live in one place: `docs/real-results.md`, with full tables in `docs/results-detail.md`
 - Deploy the public mock demo: `docs/free-deployment.md`, with owner account steps
