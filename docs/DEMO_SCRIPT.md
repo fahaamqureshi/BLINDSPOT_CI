@@ -2,7 +2,7 @@
 
 ## Current local demo and backup
 
-Open http://127.0.0.1:8040, choose Try a practice check, keep Practice photos selected, and click Run check. Show DEMO_ONLY, inspect the low-light failure in Test evidence, inspect the recorded decision order under Technical details, add a typed reviewer note, and download the Markdown report. These are explicitly scripted answers. The local submission-walkthrough.webm under artifacts/submission-audit is a recording of this actual workflow with repository-owned synthetic assets; it has not been uploaded or submitted.
+Open http://127.0.0.1:8000, choose Try a practice check, keep Practice drawings selected, and click Run check. Show DEMO_ONLY, inspect the low-light failure in Test evidence, inspect the recorded decision order under Technical details, add a typed reviewer note, and download the Markdown report. These are explicitly scripted answers. The local submission-walkthrough.webm under artifacts/submission-audit is a recording of this actual workflow with repository-owned synthetic assets; it has not been uploaded or submitted.
 
 For saved real tracking evidence, use the local replay described in REAL_WORLD_VIDEO_DEMO.md. It contains non-commercial third-party footage and is excluded from the submission package. Do not publish it without confirming the applicable contest and asset terms. The earlier five-model report is also saved evidence, not a live call during playback. The standard importer now uses zero-based API indexes and excludes seed frames; regenerate older manifests before new inference.
 
@@ -11,7 +11,7 @@ For saved real tracking evidence, use the local replay described in REAL_WORLD_V
 Recommended 2 to 3 minute no-cost route for this audit. The historical storyboard below includes live claims not reproduced in this audit. Confirm private portal video rules before recording.
 
 1. First 20 seconds: Open Home. Select Low light in the practice preview to see the deliberate fixture miss, then Obstructed to see the unknown case. Disclose that these are synthetic drawings and scripted answers, not a live model result. Explain that real evaluations use labels from a person.
-2. Next 30 seconds: Open Workspace, select Practice photos (synthetic), up to five tests and Run check in the visible settings panel. Disclose scripted fixtures and synthetic drawings.
+2. Next 30 seconds: Open Workspace, select Practice drawings, up to five tests and Run check in the visible settings panel. Disclose scripted fixtures and synthetic drawings.
 3. Next 45 seconds: Show Practice data only and DEMO_ONLY. Select Test evidence: normal PASS, low-light deliberate miss, alternate view PASS, occluded UNKNOWN and absent PASS. The alternate view is an existing image, not a repaired model or camera movement.
 4. Next 30 seconds: Open Technical details for source, hashes and order. Explain that optional Muse selects, SAM predicts in live mode, Python scores and the gate checks evidence. This mock run proves no live intelligence.
 5. Last 25 seconds: Download report and show run ID/source. State blockers: owner photos, independent labels, live validation and private rules. A person decides every release.

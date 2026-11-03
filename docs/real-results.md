@@ -1,7 +1,9 @@
 # Real results
 
-Three real SAM 3.1 results exist. Each is scored by plain Python against human labels. No model graded
+This page documents three earlier SAM 3.1 studies. Each is scored by plain Python against human labels. No model graded
 anything. These are small samples and are not a benchmark or a safety approval.
+
+For later studies, read the [fresh demo guide](JUDGE_DEMO_GUIDE.md) and [current video case study](REAL_WORLD_VIDEO_DEMO.md). The latter records corrected video indexing and supersedes earlier tracking headlines where noted.
 
 | | COCO photos | DAVIS video frames | Long video (MOT20-03) |
 | --- | --- | --- | --- |

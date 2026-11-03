@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "blindspot-ci"
 version = "0.1.0"
-description = "Mock-first, provenance-aware active vision blind-spot discovery agent."
+description = "Agent-enabled vision-model evaluation with human references, Python scoring, and reviewable evidence."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -23,6 +23,11 @@ dev = ["pytest>=8,<9", "pytest-cov>=5,<7", "ruff>=0.6,<1", "meta-sam-parser>=0.1
 
 [project.scripts]
 blindspot = "blindspot_ci.cli:main"
+
+[project.urls]
+Repository = "https://github.com/fahaamqureshi/BLINDSPOT_CI"
+Documentation = "https://github.com/fahaamqureshi/BLINDSPOT_CI/blob/main/docs/README.md"
+Issues = "https://github.com/fahaamqureshi/BLINDSPOT_CI/issues"
 
 [tool.setuptools.packages.find]
 include = ["blindspot_ci*"]
