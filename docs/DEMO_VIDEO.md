@@ -1,4 +1,20 @@
-# Complete project demo video
+# Narrated judge demo revision
+
+The current film is C:/Users/faham/Downloads/BLINDSPOT_HACKATHON_DEMO_FINAL/BLINDSPOT-CI-judge-demo.mp4. The owner explicitly requested a polished, ordered hackathon-style revision and selected English narration. It is exactly 180 seconds, 1920 by 1080, 30 fps, H.264 with AAC English narration and quiet music.
+
+Open http://127.0.0.1:8050/judge-demo/final-film/ while the recording server runs. The main portal links to this revision. The folder and separate ZIP contain the narrated film, music-only alternative, burned captions, SRT and VTT files, poster, transcript, chapter player, editable project, evaluation card, source credits, evidence references and validation report. The first movie remains available in its earlier folder.
+
+The edit follows the product in order: observed problem, purpose, human references, agent exploration, full suite, three failures, video, image stress, voice transcription, audit, camera freshness, export and close. Larger source images, an actual app interaction recording and native video overlays replace small video-window captures. An editorial crop makes the tiny missed object visible. Thin reference borders preserve the source object. Crops were not new inference inputs.
+
+Speech was generated locally with the installed Windows Microsoft Mark voice. It is synthesized narration, not a human presenter. Individual phrases have exact timed captions and were checked against all scene boundaries. No spoken phrase was truncated. Final measured audio is minus 16.72 LUFS integrated loudness and minus 1.71 dB true peak. No remote speech service or new project model call was used. Hyperframes and Kokoro remain unavailable; the locally authored rendering workflow is retained.
+
+Both full movies decoded without reported errors. Exact duration, resolution, frame rate, codecs, audio and poster matching were checked. All seventeen rendered scene samples and full-resolution failure and video frames were inspected. Native video overlay assets retain 960 by 540 source geometry. Browser checks passed for narrated playback, a 63-second chapter jump, switching audio versions with position preservation, restoring narration, no reported JavaScript errors and no horizontal overflow at a 390-pixel viewport. Details and hashes are in VALIDATION.json.
+
+The factual boundaries are unchanged: eight agent-selected tests passed; the separate twenty-case fixed suite had seventeen passes and three failures outside that selected sample. Needs review remains the decision. Night video has missing frame records. Video, generated variants and camera observations remain unscored without reviewed references. The latest public camera test saved eighteen snapshots and only one distinct image. The film is saved actual evidence, not newly running inference, and makes no safety or production approval claim.
+
+Only this document is a tracked change for the revision. Local media and composition files remain outside shared source history. The final repository gate uses mock mode. Individual publication rights and final participant form requirements remain for owner review. No upload, push or submission occurred. Source credits accompany the film.
+
+## Previous caption-and-music version
 
 The complete movie is C:/Users/faham/Downloads/BLINDSPOT_PROJECT_VIDEO_2026-11-03/BLINDSPOT-CI-full-demo.mp4. It is 180 seconds, 1920 by 1080, 30 fps, H.264 with AAC music. A separate 22-second BRAG-style trailer is brag.mp4 in the same folder. Captions are burned in. Separate subtitle files, posters, source credits, a storyboard, editable composition and validation evidence are included. Narration is off because it was not requested.
 
