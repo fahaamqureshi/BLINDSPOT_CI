@@ -374,7 +374,7 @@ def _score_target(target: dict[str, Any], parsed: Any, id_to_label: dict[int, st
                     "The target was absent from the returned stream for this labeled frame.", None
             else:
                 model_box = _scale_model_box(found, request_frame_size)
-                iou = round(box_iou(_box(model_box), _box(labeled["box"])), 4)
+                iou = box_iou(_box(model_box), _box(labeled["box"]))
                 if iou >= min_iou:
                     status, reason = PASS, f"Box overlap {iou:.2f} meets the {min_iou:.2f} threshold."
                 else:
@@ -624,7 +624,7 @@ def render_temporal_report(runs_dir: Path, run_id: str) -> str:
             f"{sequence['name']}: longest miss run {longest} frames ({longest_seconds:.2f} seconds).",
             f"  Dropout rate in ten equal time bins: {dropout_text}.",
             f"  Recovery after miss runs: {recovery_text}",
-            f"  Targets held for the whole clip: {held} of {len(sequence['targets'])}.",
+            f"  Targets passing every eligible scored frame: {held} of {len(sequence['targets'])}.",
             f"  Target retention: {retention_text}.",
             f"  Retention by condition: {condition_text}.",
             f"  Absolute luminance range: {lum}. Dark is relative to each sequence and means little where the range is narrow.",
@@ -652,7 +652,7 @@ def render_temporal_report(runs_dir: Path, run_id: str) -> str:
                        "", "Frames from the same track are strongly correlated, so intervals from this report overstate certainty.",
                        "MOT20 human boxes cover the whole person including hidden parts, while SAM boxes cover what it sees.",
                        "Low scores on frames tagged occluded may reflect that labelling convention and not a model loss.",
-                       "MOT20 is not a fixed-camera dataset."])
+                       "Results apply only to the selected clips and seeded tracks."])
 
 
 def temporal_report(runs_dir: Path, run_id: str) -> str:

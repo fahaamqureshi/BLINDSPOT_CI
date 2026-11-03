@@ -20,6 +20,18 @@ from blindspot_ci.providers.sam_video import MetaSam31VideoAdapter, VideoResult
 KEY = "LLM_test_key"
 
 
+def test_overlap_threshold_uses_full_precision():
+    target = {"track_id": 7, "seed_frame": 0, "frames": [
+        {"frame": 1, "status": "SCORED", "box": [0, 0, 10001, 1]},
+    ]}
+    parsed = SimpleNamespace(frames=[SimpleNamespace(frame_index=1, objects=[
+        {"object_id": 1, "box_xyxy_pixels": [0, 0, 3499, 1]},
+    ])])
+    result, _ = temporal._score_target(target, parsed, {1: "7"}, 0.34988)
+    assert result["frames"][0]["status"] == "FAIL_LOCALIZATION"
+    assert result["frames"][0]["iou"] == pytest.approx(3499 / 10001)
+
+
 class _CutStream(httpx.SyncByteStream):
     def __iter__(self):
         yield b'data: {"type":"response.output_text.delta","delta":"<1f>1<|box;x1=0;y1=0;x2=10;y2=10|>\\n"}\n\n'
@@ -217,7 +229,8 @@ def test_long_video_scores_raw_output_and_temporal_metrics(tmp_path):
     assert "target not returned" in text
     assert "box returned but below the overlap bar" in text
     assert "Target retention" in text
-    assert "hidden parts" in text and "fixed-camera" in text
+    assert "hidden parts" in text and "selected clips and seeded tracks" in text
+    assert "Targets passing every eligible scored frame" in text
     assert "strongly correlated" in text
 
 
