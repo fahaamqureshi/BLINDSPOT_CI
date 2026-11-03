@@ -22,11 +22,14 @@ This file is the contract a caller can rely on: HTTP routes in `blindspot_ci/api
 | GET /demo | none | 307 redirect to / | free |
 | GET /probes | none | 307 redirect to / | free |
 | GET /site.css | none | shared stylesheet | free |
+| GET /landing.css | none | landing-page stylesheet | free |
+| GET /api/practice-preview | none | five scored synthetic fixture cases, reference/prediction boxes and an explicit practice notice; always offline regardless of configured provider | free |
 | GET /api/info | optional dataset query | mode label, provider, planner, live flag, min IoU, dataset id and kind, available datasets, model role list | free |
 | GET /api/cases | optional dataset query | case list without labels (id, title, condition, concept, image URL, width, height, note) | free |
 | GET /api/cases/{case_id}/image | dataset query | the photo file, or 404 with a licence note when the photo is not in the checkout | free |
 | POST /api/experiment | JSON max_steps 1 to 8, optional dataset | the full run report (see run shape below) and saves it | spends only when provider is meta or planner is muse; counts against the server guard |
 | GET /api/runs/{run_id} | run id | saved run merged with reviewer notes and audit extras; committed examples answer when the id is not saved locally | free |
+| GET /api/runs | limit 1 to 50, default 12 | recent local run summaries without ground truth, predictions or reviewer text; invalid run files and sidecars are skipped | free |
 | GET /api/runs/{run_id}/release-gate | run id | gate JSON: policy, traceability, checks, conditions, failing list, next experiments, notice | free |
 | GET /api/runs/{run_id}/card | run id | evaluation card as Markdown download | free |
 | GET /api/examples | none | one summary per committed example run, each summarised by the gate | free |
@@ -56,6 +59,8 @@ A run report is one JSON object, saved as the run id plus .json, with reviewer e
 - calls and estimated_cost_usd: budget counters for the run. Estimates use list prices, not the provider bill.
 
 Confidence is null when the API gives no score. The code never invents one.
+
+Reviewer extras are limited to validated reviewer_notes and audit fields. They cannot replace a run's mode, score summary or other evaluation fields. The practice-preview route intentionally reveals synthetic reference boxes after its fixed mock predictions; it never reveals private dataset labels or invokes a configured live provider.
 
 ## CLI surface
 

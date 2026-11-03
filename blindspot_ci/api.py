@@ -3,7 +3,7 @@ from __future__ import annotations
 import dataclasses
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, PlainTextResponse, RedirectResponse
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
@@ -17,9 +17,11 @@ from blindspot_ci.experiment.card import build_card
 from blindspot_ci.experiment.cases import MANIFESTS, image_path, load_named_dataset, public_case
 from blindspot_ci.experiment.corruptions import generate_corruptions
 from blindspot_ci.experiment.reviews import add_note, load_extras, save_audit
-from blindspot_ci.experiment.runner import RUN_ID, load_run, source_label
+from blindspot_ci.experiment.runner import RUN_ID, boxes_of, load_run, source_label
+from blindspot_ci.experiment.scoring import score_case
 from blindspot_ci.experiment.stress import generate_variants, write_manifest
 from blindspot_ci.factory import build_agent, build_experiment
+from blindspot_ci.models import Scenario
 from blindspot_ci.providers.meta import MetaApiError
 from blindspot_ci.providers.meta_extras import (
     IMAGE_COST_USD,
@@ -29,6 +31,7 @@ from blindspot_ci.providers.meta_extras import (
     MuseVoiceAdapter,
     audit_input,
 )
+from blindspot_ci.providers.mock import MockVisionProvider
 from blindspot_ci.security import install_local_guard
 
 WEB = Path(__file__).parent / "web"
@@ -87,6 +90,11 @@ def demo_page() -> RedirectResponse:
 @app.get("/site.css")
 def site_css() -> FileResponse:
     return FileResponse(WEB / "site.css", media_type="text/css")
+
+
+@app.get("/landing.css")
+def landing_css() -> FileResponse:
+    return FileResponse(WEB / "landing.css", media_type="text/css")
 
 
 @app.get("/probes")
@@ -174,6 +182,24 @@ def cases(dataset: str | None = None) -> dict[str, list[dict[str, object]]]:
     return {"cases": [public_case(c) for c in _dataset(dataset).cases.values()]}
 
 
+@app.get("/api/practice-preview")
+def practice_preview() -> dict[str, object]:
+    """Read-only, offline product example, independent of configured live services."""
+    dataset = load_named_dataset("synthetic")
+    provider = MockVisionProvider()
+    steps = []
+    for case in dataset.cases.values():
+        scenario = Scenario(id=case.id, description=case.title, probe_catalog=[case.concept],
+                            ground_truth=[])
+        prediction = provider.inspect(scenario, case.concept)
+        outcome = score_case(case, boxes_of(prediction.detections))
+        steps.append({"case": public_case(case), "outcome": outcome.to_dict(),
+                      "reference_box": case.ground_truth_box,
+                      "prediction_boxes": boxes_of(prediction.detections)})
+    return {"mode": "MOCK_FIXTURE", "cost_usd": 0, "steps": steps,
+            "notice": "Synthetic drawings and scripted answers. Software demonstration only, not model performance."}
+
+
 @app.get("/api/cases/{case_id}/image")
 def case_image(case_id: str, dataset: str | None = None) -> FileResponse:
     case = _dataset(dataset).cases.get(case_id)
@@ -206,6 +232,29 @@ def experiment(request: ExperimentRequest) -> dict[str, object]:
     if report["estimated_cost_usd"] > 0:
         _guard(cfg).charge(report["calls"], report["estimated_cost_usd"])
     return report
+
+
+@app.get("/api/runs")
+def recent_runs(limit: int = Query(default=12, ge=1, le=50)) -> list[dict[str, object]]:
+    """Recent local run summaries, without labels, reviewer notes or model output."""
+    runs = Settings().runs_dir
+    records = []
+    for path in runs.glob("*.json"):
+        if not RUN_ID.fullmatch(path.stem) or path.is_symlink():
+            continue
+        try:
+            run = load_run(runs, path.stem)
+            if not isinstance(run, dict):
+                continue
+            summary, dataset, steps = run.get("summary"), run.get("dataset"), run.get("steps")
+            if not isinstance(summary, dict) or not isinstance(dataset, dict) or not isinstance(steps, list):
+                continue
+            records.append({"id": path.stem, "dataset": dataset.get("id"),
+                            "mode": run.get("mode"), "started_at": str(run.get("started_at", "")),
+                            "tests": len(steps), "failed": summary.get("failed", 0)})
+        except (ValueError, OSError, TypeError):
+            continue
+    return sorted(records, key=lambda row: row["started_at"], reverse=True)[:limit]
 
 
 @app.get("/api/runs/{run_id}")

@@ -31,9 +31,23 @@ def load_extras(runs_dir: Path, run_id: str) -> dict[str, Any]:
         except (json.JSONDecodeError, OSError):
             return {"reviewer_notes": [], "audit": None}  # a damaged sidecar is a miss, like the cache
         if isinstance(extras, dict):
-            extras.setdefault("reviewer_notes", [])
-            extras.setdefault("audit", None)
-            return extras
+            notes = extras.get("reviewer_notes")
+            if not isinstance(notes, list):
+                notes = []
+            valid_notes = [
+                {key: note[key] for key in ("case_id", "text", "source", "at")}
+                for note in notes if isinstance(note, dict)
+                and all(isinstance(note.get(key), str) for key in ("case_id", "text", "source", "at"))
+                and note["source"] in NOTE_SOURCES and 0 < len(note["text"]) <= MAX_NOTE
+            ][:MAX_NOTES_PER_RUN]
+            audit = extras.get("audit")
+            if not isinstance(audit, dict) or not isinstance(audit.get("text"), str):
+                audit = None
+            else:
+                audit = {key: audit[key] for key in ("text", "model", "at", "note")
+                         if isinstance(audit.get(key), str)}
+            # Only reviewer fields may be merged into a saved evaluation report.
+            return {"reviewer_notes": valid_notes, "audit": audit}
         return {"reviewer_notes": [], "audit": None}
     return {"reviewer_notes": [], "audit": None}
 

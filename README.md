@@ -40,7 +40,7 @@ python scripts/check.py
 python -m blindspot_ci.cli serve
 ```
 
-Open http://127.0.0.1:8000. The home page shows a saved real result, `/guide` explains how it works, and `/app` is the full result page and tool. The project gate prints `Summary: PASS` when the tree is clean. If plain pytest reports a temporary folder permission error, run it with `--basetemp` pointing to a folder you own. CI runs ruff and pytest on Python 3.11 and 3.13.
+Open http://127.0.0.1:8000. The landing page introduces the product with an interactive, explicitly scripted practice example and links to saved evidence. `/guide` explains the method, and `/app` opens the workspace. Recent checks can be reopened from its settings panel. Test evidence includes a case selector for passes, failures and unknowns. Reports download as Markdown or JSON. The project gate prints `Summary: PASS` when its checks pass. If plain pytest reports a temporary folder permission error, run it with `--basetemp` pointing to a folder you own. CI runs ruff and pytest on Python 3.11 and 3.13.
 
 ## Results
 

@@ -4,7 +4,7 @@
 
 Recommended 2 to 3 minute no-cost route for this audit. The historical storyboard below includes live claims not reproduced in this audit. Confirm private portal video rules before recording.
 
-1. First 20 seconds: Open Home. Explain that BLINDSPOT CI tests failures against labels from a person when conditions change.
+1. First 20 seconds: Open Home. Select Low light in the practice preview to see the deliberate fixture miss, then Obstructed to see the unknown case. Disclose that these are synthetic drawings and scripted answers, not a live model result. Explain that real evaluations use labels from a person.
 2. Next 30 seconds: Open Workspace, select Practice photos (synthetic), up to five tests and Run check in the visible settings panel. Disclose scripted fixtures and synthetic drawings.
 3. Next 45 seconds: Show Practice data only and DEMO_ONLY. Select Test evidence: normal PASS, low-light deliberate miss, alternate view PASS, occluded UNKNOWN and absent PASS. The alternate view is an existing image, not a repaired model or camera movement.
 4. Next 30 seconds: Open Technical details for source, hashes and order. Explain that optional Muse selects, SAM predicts in live mode, Python scores and the gate checks evidence. This mock run proves no live intelligence.

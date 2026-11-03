@@ -248,3 +248,27 @@ footer{border-top:1px solid var(--line);font-size:12px}pre,code{font-size:12px;b
 @media(max-width:1050px){.workspace-layout{grid-template-columns:235px minmax(0,1fr);gap:24px;padding:24px}.setup{padding:20px}.workspace-heading{display:block}.source-badge{display:inline-block;max-width:none;text-align:left;margin-top:14px}.stat{padding:12px}.view-tabs{gap:18px}}
 @media(max-width:760px){.workspace-layout{grid-template-columns:minmax(0,1fr);padding:20px;gap:26px}.setup{position:static;padding:20px}.setup-form{display:grid;grid-template-columns:minmax(0,1fr);gap:0}.saved-picker{margin-top:16px;padding-top:16px}.saved-picker .small,.help-link{display:none}.workspace-heading h1{font-size:28px}.workspace-heading{margin-bottom:20px}.welcome-card{padding:24px}.welcome-card h2{font-size:23px}.mode-pill{display:none}nav.top .wrap{min-height:60px;padding:0 20px;gap:18px}nav.top a{padding:19px 0;font-size:12px}.summary-stats{gap:8px}.stat{padding:12px}.stat strong{font-size:24px}.stat span{font-size:10px}.view-tabs{gap:18px}.view-tabs button{font-size:11px}[role="tabpanel"]>section,.vb{padding:20px}.vb .vlabel{font-size:24px}.kv{grid-template-columns:minmax(0,1fr);gap:4px}.kv dd{margin-bottom:10px}}
 @media(max-width:480px){nav.top b{flex-basis:100%;margin:14px 0 0}nav.top .wrap{gap:0 20px}nav.top a{padding:12px 0}.workspace-layout{padding:16px}.summary-stats{grid-template-columns:repeat(2,1fr)}.view-tabs{gap:20px}.welcome-card{padding:22px}.vb .vlabel{display:block}.vb .vcode{display:table;margin-top:9px}.source-badge{font-size:10px}.evgrid{grid-template-columns:1fr}}
+.workspace .setup{max-height:calc(100vh - 120px);overflow-y:auto;scrollbar-width:thin}
+.recent-checks{border-top:1px solid var(--line);margin-top:18px;padding-top:12px}
+.recent-checks summary{font-size:12px;font-weight:600;cursor:pointer;min-height:36px;display:list-item;list-style-position:inside;padding:6px 0}
+.recent-checks ul{list-style:none;margin:5px 0 0;padding:0}
+.recent-checks li{font-size:12px;color:var(--mute);padding:7px 0;border-top:1px solid #edf0f4}
+.recent-checks a{display:block;padding:4px 0;text-decoration:none;min-height:44px}
+.recent-checks a:hover strong{color:var(--link);text-decoration:underline}
+.recent-checks strong{font-size:12px;font-weight:600;display:block}
+.recent-checks span{font-size:11px;display:block;color:var(--mute);margin-top:3px}
+.workspace .eyebrow{font-size:11px}.workspace .source-badge,.workspace .mode-pill{font-size:12px}
+.workspace .small{font-size:14px}.workspace .setup .small,.workspace #dataset-help{font-size:12px}
+.workspace .stat span,.workspace .barnum,.workspace .knote{font-size:12px}
+.workspace .word{font-size:11px}.workspace .view-tabs button{font-size:13px;min-height:44px}
+.workspace .setup label,.workspace .saved-picker label{font-size:13px}
+.workspace .mode-note{font-size:12px}.workspace .tools button:disabled{cursor:not-allowed}
+.inspector-heading{display:flex;justify-content:space-between;gap:20px;align-items:start;margin-bottom:20px}
+.inspector-heading label{display:block;font-size:12px;font-weight:600;min-width:210px}
+.inspector-heading select{width:100%;margin-top:8px;padding:10px;border:1px solid #cdd6e0;background:white;color:var(--ink);font:13px var(--ui);border-radius:6px;min-height:44px;max-width:280px}
+.inspector-view{list-style:none;padding:0;margin:0}.inspector-view .ev{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);align-items:start}
+.inspector-view figcaption{font-size:13px;line-height:1.85;padding:20px}.inspector-view .ev-t{font-size:17px;line-height:1.4;margin-bottom:12px}
+.case-link{background:none;border:0;padding:5px 0;font:600 13px var(--ui);min-height:36px;color:var(--link);text-decoration:underline;text-underline-offset:3px;cursor:pointer;text-align:left}
+.report-actions{display:flex;gap:18px;align-items:center;flex-wrap:wrap}.json-download{font-size:12px;color:var(--link);min-height:44px;display:inline-flex;align-items:center;text-underline-offset:4px}
+@media(max-width:1050px){.inspector-heading{display:block}.inspector-heading label{margin-top:12px}.inspector-heading select{display:block;max-width:100%}.inspector-view .ev{grid-template-columns:1fr}}
+@media(max-width:760px){.workspace .setup{max-height:none;overflow:visible}.workspace .view-tabs{gap:18px}.workspace .view-tabs button{font-size:12px}.workspace .stat span{font-size:12px}}

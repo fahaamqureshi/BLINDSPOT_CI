@@ -3,7 +3,7 @@
 <title>Workspace - BLINDSPOT CI</title>
 <meta name="description" content="The saved result of a BLINDSPOT CI check: the release decision, why, and what to fix.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect x=%278%27 y=%278%27 width=%2716%27 height=%2716%27 fill=%27%23c8281c%27 transform=%27rotate(45 16 16)%27/%3E%3C/svg%3E">
-<link rel="stylesheet" href="/site.css?v=workspace-2">
+<link rel="stylesheet" href="/site.css?v=product-3">
 </head><body class="workspace pending">
 <a class="skip" href="#main">Skip to content</a>
 <nav class="top" aria-label="Main"><div class="wrap"><b><i></i>BLINDSPOT CI</b><a href="/">Home</a><a href="/app" aria-current="page">Workspace</a><a href="/guide">How it works</a><span class="mode-pill" id="connection">Connecting</span></div></nav>
@@ -19,6 +19,7 @@
  <button id="run" disabled>Run check</button><p id="note" class="small" role="status" aria-live="polite"></p>
  </section>
  <div class="saved-picker"><p class="eyebrow">EXPLORE SAVED EVIDENCE</p><label for="example-select">Saved example</label><select id="example-select"><option value="">Choose an example</option></select><button id="load-example" class="secondary" disabled>Open example</button><p class="small">Previously saved results. Opening them makes no model call.</p></div>
+ <details class="recent-checks" open><summary>Your recent checks</summary><ul id="recent-checks"><li>No checks yet. Your saved runs will appear here.</li></ul></details>
  <a class="help-link" href="/guide">How do checks work? <span aria-hidden="true">→</span></a>
 </aside>
 <div class="workspace-content">
@@ -33,6 +34,7 @@
  <section id="fix" aria-labelledby="fix-h" hidden><p class="eyebrow">NEXT STEPS</p><h2 id="fix-h">What to do next</h2><ol class="fix" id="fix-list"></ol></section>
  </div>
  <div id="panel-evidence" role="tabpanel" aria-labelledby="tab-evidence" tabindex="0" hidden>
+ <section class="case-inspector" aria-labelledby="inspector-title"><div class="inspector-heading"><div><h2 id="inspector-title">Review a test case</h2><p class="small">Inspect passed, failed and unscored cases with their actual evidence.</p></div><label for="inspect-case">Test case <select id="inspect-case"></select></label></div><ul id="inspect-view" class="inspector-view"></ul></section>
  <section id="evidence" aria-labelledby="ev-h" hidden><p class="eyebrow">FAILURE REVIEW</p><h2 id="ev-h">Inspect failed tests</h2><p id="ev-intro" class="small"></p><p class="legend"><span style="--c:var(--sam)">Model prediction</span><span style="--c:var(--human)">Human label (dashed)</span></p><ul class="evgrid" id="ev-grid"></ul><p><button class="btn alt sm" id="ev-more" hidden></button></p></section>
  <section id="all"><h2>Every test in this run</h2><div id="all-body"></div></section>
  </div>
@@ -68,7 +70,7 @@ const NS='http://www.w3.org/2000/svg';
 let info=null,ds='synthetic',cur=null;const used=new Set();
 function h(tag,attrs,...kids){const e=document.createElement(tag);for(const[k,v]of Object.entries(attrs||{}))e.setAttribute(k,v);for(const kid of kids)e.append(kid);return e}
 function s(tag,attrs,text){const e=document.createElementNS(NS,tag);for(const[k,v]of Object.entries(attrs||{}))e.setAttribute(k,v);if(text)e.textContent=text;return e}
-async function api(path,opts){const r=await fetch(path,opts);let d={};try{d=await r.json()}catch(e){}if(!r.ok)throw Error(typeof d.detail==='string'?d.detail:d.detail?JSON.stringify(d.detail):r.status);return d}
+async function api(path,opts){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),120000);try{const r=await fetch(path,{...opts,signal:controller.signal});let d={};try{d=await r.json()}catch(e){}if(!r.ok)throw Error(typeof d.detail==='string'?d.detail:d.detail?JSON.stringify(d.detail):r.status);return d}catch(e){if(e.name==='AbortError')throw Error('The request timed out. Reopen your recent checks before starting another run.');throw e}finally{clearTimeout(timer)}}
 const TECH={FAIL_FALSE_NEGATIVE:'false negative',FAIL_FALSE_POSITIVE:'false positive',FAIL_LOCALIZATION:'localization failure'};
 const abbr=(t,d)=>h('abbr',{title:d},t);
 const IOU_TIP='IoU: the area two boxes share divided by the area they cover together. 1.00 is a perfect match.';
@@ -126,7 +128,7 @@ function renderVerdict(run,gate){
   const L=LABEL[gate.decision]||[gate.decision,''],v=$('verdict');v.className='vb '+gate.decision;
   const kids=[h('p',{class:'eyebrow'},'RELEASE CHECK'),h('p',{class:'vlabel'},L[0],h('span',{class:'vcode'},gate.decision)),h('p',{class:'vsent'},sentence(run,gate))];
   kids.push(h('p',{class:'vmeta'},'A person must review the evidence. This is not a safety approval.'),
-   h('a',{class:'btn sm',href:`/api/runs/${run.id}/card`,download:`report-${run.id}.md`},'Download report'));
+   h('div',{class:'report-actions'},h('a',{class:'btn sm',href:`/api/runs/${run.id}/card`,download:`report-${run.id}.md`},'Download report (.md)'),h('a',{class:'json-download',href:`/api/runs/${run.id}`,download:`run-${run.id}.json`},'Download run JSON')));
   v.replaceChildren(...kids)}
 
 function classify(k,c,p){
@@ -177,17 +179,19 @@ function boxSvg(st,w,ht,alt){
   if(gt)svg.append(s('rect',{x:gt[0],y:gt[1],width:gt[2]-gt[0],height:gt[3]-gt[1],fill:'none',stroke:'#8a5a00','stroke-width':sw,'stroke-dasharray':`${sw*3} ${sw*2}`}));
   for(const d of(st.prediction?st.prediction.detections:[]))if(d.bbox)svg.append(s('rect',{x:d.bbox[0],y:d.bbox[1],width:d.bbox[2]-d.bbox[0],height:d.bbox[3]-d.bbox[1],fill:'none',stroke:'#0b7c86','stroke-width':sw}));
   return svg}
-function photoSet(run){const id=run.dataset&&run.dataset.id;return PHOTO_SET[id]||(String(run.dataset.type).includes('SYNTHETIC')?'synthetic':info.datasets.includes(id)?id:ds)}
+function photoSet(run){const id=run.dataset&&run.dataset.id;const known={'synthetic-maintenance-tray-v0':'synthetic','real-user-local':'real','open-images-v7-validation':'open','open-images-v7-hard':'hard','open-images-v7-hard-tier':'hard'};return PHOTO_SET[id]||known[id]||(String(run.dataset.type).startsWith('GENERATED')?'generated':String(run.dataset.type).startsWith('MEASURED')?'corrupted':String(run.dataset.type).includes('SYNTHETIC')?'synthetic':info.datasets.includes(id)?id:ds)}
 function evidenceCard(st,run){
   const c=st.case,o=st.outcome,fn=o.status==='FAIL_FALSE_NEGATIVE',fp=o.status==='FAIL_FALSE_POSITIVE';
-  const alt=`${c.title}, ${fn?'model missed it':fp?'model found something that is not there':'model box in the wrong place'}`;
+  const alt=c.title+', '+statusText(o.status);
   const box=h('div',{class:'evbox'}),svg=boxSvg(st,c.width,c.height,alt);box.append(svg);
   const im=new Image();im.alt=alt;im.loading='eager';
   im.onload=()=>{box.insertBefore(im,svg);svg.querySelectorAll('.evph,.evphtxt').forEach(e=>e.remove());svg.removeAttribute('role');svg.setAttribute('aria-hidden','true');svg.removeAttribute('aria-label')};
   im.src=`${c.image_url}?dataset=${encodeURIComponent(photoSet(run))}`;
   const hasGt=st.ground_truth&&st.ground_truth.bbox,hasPred=st.prediction&&st.prediction.detections.some(d=>d.bbox);
-  const what=fn?'The model drew no box.':fp?'A person marked no object here, but the model drew a box.':`The boxes overlap by ${o.iou===null?'n/a':Number(o.iou).toFixed(2)}. We need at least ${Number(run.summary.min_iou).toFixed(2)}.`;
-  return h('li',{},h('figure',{class:'ev'},box,h('figcaption',{},h('h3',{class:'ev-t'},c.title),`${STATUS[o.status]}. ${what}`,h('br'),`Person box: ${hasGt?'dashed amber':'none, the object is absent'}. Model box: ${hasPred?'solid teal':'none'}.`)))}
+  const visibility=(st.ground_truth||{}).visibility;
+  const what=o.status==='UNKNOWN'?'Visibility is unknown. This case is not scored as a model miss.':o.status==='ERROR'?'This test could not be completed. It is not scored as a model miss.':fn?'The prediction contains no box.':fp?'The reference says absent, but the prediction contains a box.':visibility==='absent'?'The prediction correctly contains no box.':`Box overlap: ${o.iou===null?'n/a':Number(o.iou).toFixed(2)}. Required: ${Number(run.summary.min_iou).toFixed(2)}.`;
+  const label=String(run.dataset.type).includes('SYNTHETIC')?'Fixture reference':'Human reference';
+  return h('li',{},h('figure',{class:'ev'},box,h('figcaption',{},h('h3',{class:'ev-t'},c.title),`${STATUS[o.status]}. ${what}`,h('br'),`${label}: ${hasGt?'dashed amber':visibility==='absent'?'absent':visibility==='unknown'?'unknown':'unavailable'}. Prediction: ${hasPred?'solid teal':'none'}.`)))}
 function renderEvidence(run){
   const miss=run.steps.filter(x=>x.outcome.status.startsWith('FAIL')),grid=$('ev-grid'),LIM=6;
   $('evidence').hidden=false;
@@ -200,7 +204,7 @@ function renderEvidence(run){
 /* collapsed sections */
 function table(head,rows,cap){return h('table',{},h('caption',{class:'vis'},cap),h('thead',{},h('tr',{},...head.map(x=>h('th',{scope:'col'},x)))),h('tbody',{},...rows))}
 function renderAll(run){
-  const rows=run.steps.map((st,i)=>{const c=st.case,o=st.outcome;return h('tr',{},h('td',{},String(i+1)),h('th',{scope:'row'},c.title),h('td',{},kind(c.condition)),h('td',{},statusText(o.status)),h('td',{},o.iou===null||o.iou===undefined?'n/a':Number(o.iou).toFixed(2)))});
+  const rows=run.steps.map((st,i)=>{const c=st.case,o=st.outcome,review=h('button',{class:'case-link',type:'button','aria-label':'Inspect '+c.title},c.title);review.onclick=()=>{$('inspect-case').value=c.id;inspectCase(run,c.id);$('inspector-title').scrollIntoView({block:'start'})};return h('tr',{},h('td',{},String(i+1)),h('th',{scope:'row'},review),h('td',{},kind(c.condition)),h('td',{},statusText(o.status)),h('td',{},o.iou===null||o.iou===undefined?'n/a':Number(o.iou).toFixed(2)))});
   $('all-body').replaceChildren(h('p',{class:'small'},'Every test in this run, in the order it ran. Overlap is the ',abbr('IoU',IOU_TIP),' score.'),h('div',{class:'tablewrap',tabindex:'0',role:'region','aria-label':'All tests'},table(['#','Photo','Kind of photo','Result','Overlap'],rows,'Every test in the run')))}
 function renderDetails(run,gate){
   const t=gate.traceability||{},sm=run.summary,p=gate.policy;
@@ -259,11 +263,11 @@ async function render(run){
   run.reviewer_notes=run.reviewer_notes||[];cur=run;
   $('verdict').className='vb';$('verdict').replaceChildren(h('p',{class:'vline'},'Loading the verdict.'));
   const gate=await api(`/api/runs/${run.id}/release-gate`);
-  renderHeader(run,gate);renderVerdict(run,gate);renderWhy(run,gate);renderFix(gate);renderEvidence(run);renderAll(run);renderDetails(run,gate);renderTools(run);
+  renderHeader(run,gate);renderVerdict(run,gate);renderWhy(run,gate);renderFix(gate);renderEvidence(run);renderAll(run);renderDetails(run,gate);renderTools(run);renderInspector(run);
   $('welcome').hidden=true;$('result-workspace').hidden=false;$('page-error').hidden=true;showView('overview')}
 async function loadRun(id){
-  try{await render(await api('/api/runs/'+encodeURIComponent(id)))}
-  catch(e){fail('Could not open run '+id+' ('+e.message+'). Try the example result, or run a new check below.')}}
+  try{await render(await api('/api/runs/'+encodeURIComponent(id)));return true}
+  catch(e){fail('Could not open this saved run ('+e.message+'). Choose another saved result or start a new check.');return false}}
 function fail(msg){
   $('page-error').textContent=msg;$('page-error').hidden=false}
 
@@ -285,9 +289,12 @@ async function init(){
   datasetOptions(ds);
   runWarn();
   const q=new URLSearchParams(location.search);
+  if(q.has('dataset')&&info.datasets.includes(q.get('dataset')))ds=q.get('dataset');
+  datasetOptions(ds);
   let id=q.get('run');
   try{const ex=await api('/api/examples');ex.forEach(x=>{exampleIds.add(x.id);$('example-select').append(h('option',{value:x.id},x.title))})}catch(e){$('example-select').options[0].textContent='Examples unavailable'}
   await setDataset(ds);
+  await refreshRecent();
   if(id)await loadRun(id);
   }
 $('dataset').addEventListener('change',e=>setDataset(e.target.value).catch(x=>{$('note').textContent=plainErr(x)}));
@@ -295,7 +302,7 @@ $('run').addEventListener('click',async()=>{
   const b=$('run');b.disabled=true;$('dataset').disabled=true;$('steps').disabled=true;b.textContent='Running check…';$('note').textContent='Comparing predictions with the supplied labels.';b.setAttribute('aria-busy','true');
   try{const d=await api('/api/experiment',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({max_steps:Number($('steps').value),dataset:ds})});
     if(info.provider==='meta')used.add('sam-3.1');if(info.planner==='muse')used.add('muse-spark-1.3');
-    await render(d);history.replaceState(null,'','?run='+d.id);$('note').textContent='Check complete. Review the overview or open Test evidence.';
+    await render(d);history.replaceState(null,'','?run='+d.id);await refreshRecent();$('note').textContent='Check complete. Review the overview or open Test evidence.';
     $('title').scrollIntoView({block:'start'});$('verdict').focus({preventScroll:true})}
   catch(e){$('note').textContent='Check failed: '+plainErr(e)}finally{b.disabled=false;$('dataset').disabled=false;$('steps').disabled=false;b.textContent='Run check';b.removeAttribute('aria-busy')}});
 $('stress').addEventListener('click',async()=>{
@@ -326,6 +333,9 @@ tabs.forEach((button,index)=>{
   button.onclick=()=>showView(button.dataset.view);
   button.onkeydown=event=>{let next;if(event.key==='ArrowRight')next=(index+1)%tabs.length;else if(event.key==='ArrowLeft')next=(index+tabs.length-1)%tabs.length;else if(event.key==='Home')next=0;else if(event.key==='End')next=tabs.length-1;else return;event.preventDefault();tabs[next].click();tabs[next].focus()}});
 $('example-select').onchange=()=>{$('load-example').disabled=!$('example-select').value};
-$('load-example').onclick=async()=>{const id=$('example-select').value;if(!id)return;const button=$('load-example');button.disabled=true;button.textContent='Opening…';try{await loadRun(id);if(cur&&cur.id===id){history.replaceState(null,'','?run='+id);$('title').scrollIntoView({block:'start'})}}finally{button.disabled=false;button.textContent='Open example'}};
+$('load-example').onclick=async()=>{const id=$('example-select').value;if(!id)return;const button=$('load-example');button.disabled=true;button.textContent='Opening…';try{if(await loadRun(id)){history.replaceState(null,'','?run='+id);$('title').scrollIntoView({block:'start'})}}finally{button.disabled=false;button.textContent='Open example'}};
+function inspectCase(run,id){const step=run.steps.find(item=>item.case.id===id);$('inspect-view').replaceChildren(...(step?[evidenceCard(step,run)]:[h('li',{},'No case selected.')]))}
+function renderInspector(run){const select=$('inspect-case');select.replaceChildren(...run.steps.map(step=>h('option',{value:step.case.id},step.case.title+' · '+(STATUS[step.outcome.status]||step.outcome.status))));const initial=run.steps.find(step=>step.outcome.status.startsWith('FAIL'))||run.steps[0];if(initial)select.value=initial.case.id;select.onchange=()=>inspectCase(run,select.value);inspectCase(run,select.value)}
+async function refreshRecent(){const list=$('recent-checks');try{const runs=await api('/api/runs?limit=5');list.replaceChildren(...(runs.length?runs.map(run=>h('li',{},h('a',{href:'/app?run='+encodeURIComponent(run.id)},h('strong',{},datasetTitle(run.dataset)),h('span',{},`${run.tests} tests · ${run.failed} failed · ${run.id.slice(0,8)}`)))):[h('li',{},'No checks yet. Your saved runs will appear here.')]))}catch(e){list.replaceChildren(h('li',{},'Recent checks could not be loaded. Refresh to try again.'))}}
 init().catch(e=>{fail('Cannot reach the local server. Check that it is running, then refresh this page.');$('connection').textContent='Offline';$('run').disabled=true;$('cases').textContent='Server not reachable.'}).finally(()=>document.body.classList.remove('pending'));
 </script></body></html>
