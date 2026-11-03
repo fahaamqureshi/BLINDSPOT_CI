@@ -1,6 +1,8 @@
 # Three-minute submission demo revision
 
-The latest cut is C:/Users/faham/Downloads/BLINDSPOT_CI_SUBMISSION_DEMO_2026-11-04/BLINDSPOT-CI-submission-demo.mp4. It explains the user problem before showing the current landing page, a new practice-workflow recording, human references, the agent loop, full-suite evidence and reviewer output. The camera experiment is omitted to keep the evaluation story focused. All five model responsibilities remain represented.
+The latest fresh-data walkthrough is documented in [terminal-to-web demonstration](TERMINAL_TO_WEB_DEMO.md). It follows actual setup commands, six new human-labeled cases, an authorized live run and exported evidence, with a clearer explanation of the developer's inputs and outputs. Its local delivery is C:/Users/faham/Downloads/BLINDSPOT_CI_TERMINAL_TO_WEB_DEMO_2026-11-04. Earlier cuts below remain historical records.
+
+The earlier submission cut is C:/Users/faham/Downloads/BLINDSPOT_CI_SUBMISSION_DEMO_2026-11-04/BLINDSPOT-CI-submission-demo.mp4. It explains the user problem before showing the current landing page, a new practice-workflow recording, human references, the agent loop, full-suite evidence and reviewer output. The camera experiment is omitted to keep the evaluation story focused. All five model responsibilities remain represented.
 
 The film is 180 seconds with English narration, burned captions and a second version with optional captions. The folder contains a chapter player, transcript, source credits, evaluation card, evidence references and editable local composition. Fresh interface captures use the current frontend. The real model scenes replay actual saved results; the practice scene uses labeled scripted fixtures. The original model reports are preserved.
 

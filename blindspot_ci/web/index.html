@@ -89,7 +89,7 @@ const kind=k=>KINDS[k]||k.replaceAll('_',' ');
 const noun=k=>NOUN[k]||kind(k);
 const TITLES={'coco-val2017':'Everyday photos (COCO)','davis-2017-frames':'Video frames (DAVIS)'};
 const PHOTO_SET={'coco-val2017':'coco','davis-2017-frames':'video'};
-const DATASET_NAMES={synthetic:'Practice drawings',real:'Your labeled photos',open:'Open Images photos',hard:'Hard labeled photos',video:'Video frames',coco:'COCO photos','coco-val2017':'Everyday photos (COCO)',generated:'Generated variants',corrupted:'Corrupted copies'};
+const DATASET_NAMES={synthetic:'Practice drawings',real:'Your labeled photos','real-user-local':'Your labeled photos',open:'Open Images photos',hard:'Hard labeled photos',video:'Video frames',coco:'COCO photos','coco-val2017':'Everyday photos (COCO)',generated:'Generated variants',corrupted:'Corrupted copies'};
 const datasetName=n=>DATASET_NAMES[n]||n;
 const datasetTitle=id=>TITLES[id]||(String(id).includes('synthetic')?DATASET_NAMES.synthetic:datasetName(id));
 const exampleIds=new Set();
