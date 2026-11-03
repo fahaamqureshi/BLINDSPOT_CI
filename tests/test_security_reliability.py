@@ -109,7 +109,11 @@ def test_oversized_dimensions_are_rejected_with_a_clear_error(tmp_path, size):
 
 def test_run_endpoint_charges_the_session_spend_cap(monkeypatch):
     class FakeAgent:
+        def __init__(self, parent):
+            self.budget = BudgetGuard(max_calls=10, max_cost_usd=1, parent=parent)
+
         def run(self, scenario):
+            self.budget.reserve(0.04)
             return RunReport(run_id="run_fake", scenario_id=scenario.id, provider="meta",
                              status="complete", iterations=1, calls=2, estimated_cost_usd=0.04,
                              probes=["person"], results=[],
@@ -117,9 +121,60 @@ def test_run_endpoint_charges_the_session_spend_cap(monkeypatch):
                                                    weighted_risk=0.0))
 
     monkeypatch.setenv("BLINDSPOT_PROVIDER", "meta")
-    monkeypatch.setattr(api, "build_agent", lambda *args, **kwargs: FakeAgent())
+    monkeypatch.setattr(api, "build_agent", lambda *args, **kwargs: FakeAgent(kwargs["budget_parent"]))
     monkeypatch.setattr(api, "_SESSION", BudgetGuard(max_calls=100, max_cost_usd=0.05))
     client = TestClient(app)
     codes = [client.post("/api/run", json={"scenario_id": "warehouse_001"}).status_code
              for _ in range(3)]
-    assert codes == [200, 200, 429]
+    assert codes == [200, 429, 429]
+    assert api._SESSION.cost_usd == pytest.approx(0.04)
+
+
+@pytest.mark.parametrize("host", ["[broken", "localhost:bad", "localhost:99999",
+                                  "user@localhost", "localhost/path", "localhost#fragment"])
+def test_malformed_host_is_refused_without_server_error(host):
+    response = TestClient(app, raise_server_exceptions=False).get("/health", headers={"host": host})
+    assert response.status_code == 403
+
+
+@pytest.mark.parametrize("origin", ["http://[broken", "https://testserver", "http://testserver/path"])
+def test_malformed_or_different_scheme_origin_is_refused(origin):
+    response = TestClient(app, raise_server_exceptions=False).post(
+        "/api/experiment", json={}, headers={"origin": origin})
+    assert response.status_code == 403
+
+
+@pytest.mark.parametrize("value", [[], None, {"id": "wrong", "steps": []},
+                                   {"id": "a" * 16, "steps": "broken"}])
+def test_structurally_invalid_saved_run_is_refused(tmp_path, monkeypatch, value):
+    monkeypatch.setenv("BLINDSPOT_RUNS_DIR", str(tmp_path))
+    (tmp_path / f"{'a' * 16}.json").write_text(json.dumps(value), encoding="utf-8")
+    client = TestClient(app, raise_server_exceptions=False)
+    for suffix in ("", "/release-gate", "/card"):
+        assert client.get(f"/api/runs/{'a' * 16}{suffix}").status_code == 404
+
+
+def test_experiment_reserves_shared_budget_before_each_intercepted_call(tmp_path, monkeypatch):
+    from blindspot_ci import factory
+    from blindspot_ci.providers.mock import MockVisionProvider
+
+    calls = []
+
+    class FakeMeta(MockVisionProvider):
+        name = "meta"
+
+        def inspect(self, scenario, probe):
+            calls.append(probe)
+            return super().inspect(scenario, probe)
+
+    monkeypatch.setenv("BLINDSPOT_PROVIDER", "meta")
+    monkeypatch.setenv("LIVE_API_ENABLED", "true")
+    monkeypatch.setenv("MODEL_API_KEY", "fake")
+    monkeypatch.setenv("BLINDSPOT_RUNS_DIR", str(tmp_path / "runs"))
+    monkeypatch.setattr(factory, "MetaSam31Adapter", lambda *args: FakeMeta())
+    monkeypatch.setattr(api, "_SESSION", BudgetGuard(max_calls=100, max_cost_usd=.005))
+    client = TestClient(app)
+    run = client.post("/api/experiment", json={"max_steps": 5}).json()
+    assert len(calls) == api._SESSION.calls == run["calls"] == 2
+    assert api._SESSION.cost_usd == pytest.approx(.005)
+    assert client.post("/api/experiment", json={"max_steps": 5}).status_code == 429

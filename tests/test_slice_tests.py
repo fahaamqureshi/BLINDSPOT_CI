@@ -36,7 +36,7 @@ def test_underpowered_slice_is_never_worse():
 
 def test_cli_slice_tests_shows_chance_and_independence_notes(tmp_path, monkeypatch, capsys):
     run_id = "b" * 16
-    run = {"steps": [_step(f"low_{i}", "low_light", "PASS" if i < 6 else "FAIL_LOCALIZATION")
+    run = {"id": run_id, "steps": [_step(f"low_{i}", "low_light", "PASS" if i < 6 else "FAIL_LOCALIZATION")
                       for i in range(10)] +
                      [_step(f"rest_{i}", "normal", "PASS") for i in range(10)]}
     (tmp_path / f"{run_id}.json").write_text(json.dumps(run), encoding="utf-8")

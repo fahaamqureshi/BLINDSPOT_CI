@@ -1,5 +1,13 @@
 # Metrics validation
 
+## Current temporal corrections
+
+The reusable MOT importer now converts source annotation frame n to API frame n minus one, excludes the starting frame from scoreable rows, converts half-open seed endpoints to inclusive prompt endpoints, and excludes missing labels or visibility at or below 0.2. Source indexes are retained. A regression test passes an imported seed through the actual request builder and an intercepted video stream, then checks the following-frame score.
+
+Miss runs now end at unknown, error or missing-frame gaps. Such episodes are censored, not counted as observed recoveries or silently joined. Configured video sample IDs are derived from the input suite before inference. A manifest/frame identity digest is named frame_identity_sha256; it is not falsely described as an image-file hash. API, default CLI and evaluation cards select the same committed video policy for HUMAN_LABELED_VIDEO. Explicit CLI policy overrides remain supported.
+
+The new two-clip case study's 1,863 eligible scores matched an independent recalculation from saved raw model boxes. This is saved live evidence, not a new live call in the current readiness pass. Historical manifests from the older reusable importer require regeneration before new performance claims. See SUBMISSION_READINESS.md for current checks.
+
 Date: 2026-11-03. Python is the scorer. The supported task is single-target case success, not multi-object average precision.
 
 ## Definitions

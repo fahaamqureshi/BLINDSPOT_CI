@@ -1,5 +1,17 @@
 # Security audit
 
+## Current corrections and remaining boundary
+
+The current pass fixes in-process shared estimated spending by making each experiment and agent reserve against its parent server budget before the model call. Concurrent child guards cannot exceed that shared estimate. Refunds cannot release another child's reservations. Invalid, negative and non-finite reservations are rejected. The session guard initializes under a lock. The earlier shared-budget P1 below is resolved for a single server process.
+
+Malformed hosts and origins now return 403 instead of crashing. Voice case IDs and content lengths are validated before adapter construction or spending. Invalid saved-run structures and mismatched IDs are refused. Run IDs reject trailing newlines; run files and reviewer sidecars reject symbolic links. Submission collection skips symbolic links. Tests disable dotenv and clear real-key environment access before fake adapter tests.
+
+Pillow 12.3.0 matched published decoder advisories. The package now requires Pillow 13 and Python 3.11 or newer, according to the upstream security release at https://pillow.readthedocs.io/en/stable/releasenotes/13.0.0.html. A complete runtime dependency closure, including optional SAM parsing and platform-selected Uvicorn extras, queried 24 versions and found zero OSV advisory matches. The exact inventory and response are in artifacts/submission-audit/dependency-audit-complete.json. This point-in-time lookup is not a complete security certification.
+
+Authentication, tenant isolation, durable multi-process budget accounting, public rate limiting and hosted security validation remain absent. Estimates are not billing receipts; retries and a process restart are outside a durable account-wide cap. Use the live service only as a local single-user tool. No private dotenv contents or key values were opened or displayed in this pass.
+
+Earlier audit observations follow.
+
 Date: 2026-11-03. Scope: non-destructive local checks in mock mode. No dotenv file, API key, private image collection or credential value was opened or printed. This is not a penetration-test certification.
 
 | Check | Result | Evidence |

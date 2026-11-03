@@ -1,9 +1,10 @@
 # Public demo image: scripted answers only, no key, no private photos. Never bake .env into an image.
 FROM python:3.12-slim
 ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 \
+    DOTENV_DISABLED=1 LIVE_API_ENABLED=false BLINDSPOT_PLANNER=heuristic \
     BLINDSPOT_PROVIDER=mock BLINDSPOT_HOST=0.0.0.0 BLINDSPOT_PORT=8000
 WORKDIR /app
-COPY pyproject.toml README.md LICENSE ./
+COPY pyproject.toml setup.py MANIFEST.in README.md LICENSE ./
 COPY blindspot_ci ./blindspot_ci
 COPY fixtures ./fixtures
 COPY data ./data

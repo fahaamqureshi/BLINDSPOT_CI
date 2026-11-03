@@ -20,6 +20,24 @@ from blindspot_ci.providers.sam_video import MetaSam31VideoAdapter, VideoResult
 KEY = "LLM_test_key"
 
 
+def test_unscored_gaps_censor_recovery_instead_of_joining_misses():
+    rows = [{"frame": 1, "status": "FAIL_FALSE_NEGATIVE"},
+            {"frame": 2, "status": "NOT_SCORED"},
+            {"frame": 3, "status": "FAIL_LOCALIZATION"},
+            {"frame": 4, "status": "PASS"}]
+    runs, never = temporal._miss_runs(rows)
+    assert [len(run["misses"]) for run in runs] == [1, 1]
+    assert runs[0]["censored"] and runs[0]["recovery"] is None
+    assert not runs[1]["censored"] and runs[1]["recovery"]["frame"] == 4
+    assert never == 0
+
+
+def test_missing_frame_numbers_censor_recovery():
+    runs, never = temporal._miss_runs([{"frame": 1, "status": "FAIL_LOCALIZATION"},
+                                      {"frame": 5, "status": "PASS"}])
+    assert len(runs) == 1 and runs[0]["censored"] and never == 0
+
+
 def test_overlap_threshold_uses_full_precision():
     target = {"track_id": 7, "seed_frame": 0, "frames": [
         {"frame": 1, "status": "SCORED", "box": [0, 0, 10001, 1]},

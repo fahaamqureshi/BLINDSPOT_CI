@@ -385,17 +385,24 @@ def build_manifest(
             seed_frame = target["seed_frame"]
             frames: list[dict[str, Any]] = []
             row_by_frame = {frame: row for frame, row in target.pop("_rows")}
-            for frame in range(seed_frame, info["seqLength"] + 1):
+            for frame in range(seed_frame + 1, info["seqLength"] + 1):
                 row = row_by_frame.get(frame)
-                if row is None:
-                    frames.append({"frame": frame, "status": "NOT_SCORED", "box": None,
-                                   "visibility": None, "tags": ["NOT_SCORED"]})
+                if row is None or row["visibility"] <= 0.2:
+                    frames.append({"frame": frame - 1, "source_frame": frame,
+                                   "status": "NOT_SCORED", "box": None,
+                                   "visibility": None if row is None else row["visibility"],
+                                   "tags": ["NOT_SCORED"]})
                 else:
-                    frames.append({"frame": frame, "status": "SCORED", "box": _frame_box(row),
+                    frames.append({"frame": frame - 1, "source_frame": frame,
+                                   "status": "SCORED", "box": _frame_box(row),
                                    "visibility": round(row["visibility"], 6),
                                    "tags": _tags(row["box"], row["visibility"], actual_size, frame,
                                                  samples, dark_threshold)})
-            targets.append({**target, "seed_box": _frame_box({"box": target["seed_box"]}), "frames": frames})
+            seed_box = _frame_box({"box": target["seed_box"]})
+            seed_box[2] -= 1
+            seed_box[3] -= 1
+            targets.append({**target, "seed_frame": seed_frame - 1,
+                            "source_seed_frame": seed_frame, "seed_box": seed_box, "frames": frames})
         sequence_manifests.append({
             "name": sequence,
             "source_url": sequence_preflight.get("mp4_url", OFFICIAL_MP4_URLS.get(sequence)),
@@ -403,13 +410,16 @@ def build_manifest(
             "frame_size": list(actual_size),
             "frame_count": info["seqLength"],
             "luminance_samples": [
-                {"frame": frame, "mean_luminance": round(value, 6)} for frame, value in samples
+                {"frame": frame - 1, "source_frame": frame,
+                 "mean_luminance": round(value, 6)} for frame, value in samples
             ],
             "luminance_verified": bool(samples),
             "targets": targets,
         })
     manifest = {
         "dataset": "MOT20",
+        "frame_index_base": 0, "source_frame_index_base": 1,
+        "seed_frames_scored": False, "min_scored_visibility": 0.2,
         "image_archive_url": preflight_data.get("image_archive_url", IMAGE_URL),
         "labels_archive_url": preflight_data.get("labels_archive_url", LABELS_URL),
         "labels_archive_sha256": archive_sha or expected_sha,

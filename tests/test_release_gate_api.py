@@ -67,3 +67,16 @@ def test_card_and_app_include_release_gate(tmp_path, monkeypatch):
     assert "Decision: DEMO_ONLY" in card.text
     assert "Human review is mandatory. GO_CANDIDATE is not a deployment approval or safety certification." in card.text
     assert page.status_code == 200 and "/release-gate" in page.text and "What to do next" in page.text
+
+
+def test_video_api_and_export_choose_same_video_policy(tmp_path, monkeypatch):
+    run = saved_run()
+    run["dataset"] = {"id": "mot20-long", "type": "HUMAN_LABELED_VIDEO",
+                      "annotation_status": "human_labeled"}
+    monkeypatch.setenv("BLINDSPOT_RUNS_DIR", str(write_run(tmp_path, run)))
+    client = TestClient(app)
+    gate = client.get(f"/api/runs/{RUN_ID}/release-gate").json()
+    assert gate["policy"]["required_conditions"] == ["occluded", "truncated", "dark", "small_object"]
+    card = client.get(f"/api/runs/{RUN_ID}/card")
+    assert card.status_code == 200 and f"Decision: {gate['decision']}" in card.text
+    assert "seeded track" in card.text and "SAM returned no confidence scores" not in card.text

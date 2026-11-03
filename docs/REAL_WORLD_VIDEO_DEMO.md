@@ -50,7 +50,7 @@ Two of six people reached 90 percent retention on their eligible frames. A perso
 
 The saved app report samples one eligible frame per target every 25 frames, according to a fixed rule: 73 sampled checks, 54 pass and 19 fail. Its 36 distinct frame thumbnails have actual file hashes. Configured case IDs match the sampling rule applied to the pre-inference human manifest. The replay table and annotated video use all eligible frames instead of this sample.
 
-The default app photo policy returns NEEDS_REVIEW. The repository's existing `fixtures/policies/long-video.json` returns NO_GO because occluded cases pass only 26 of 42 sampled checks, below its 90 percent bar. Neither policy was weakened. Both decisions are saved and explained separately on the replay page.
+At initial capture, the app used its photo policy and returned NEEDS_REVIEW. The submission-readiness correction now selects the existing video policy for video evidence across the app, default CLI and evaluation card. The current decision is consistently NO_GO because occluded cases pass only 26 of 42 sampled checks, below its 90 percent bar. No score or threshold was softened.
 
 ## Validation evidence
 
@@ -64,6 +64,6 @@ The completion gate's exact output is stored in `artifacts/real-world-demo/check
 
 Changed source files: `blindspot_ci/experiment/temporal.py` and `tests/test_temporal.py`. The temporal scorer now compares full-precision overlap with the threshold. The new regression case demonstrates that rounding 3499/10001 to four decimals could incorrectly pass a threshold of 0.34988. Temporal report wording now refers to eligible frames and selected clips rather than implying uninterrupted full-clip tracking or making a general camera claim. This document records the local demo; media and local helper scripts remain ignored artifacts.
 
-Limits: six tracks and two scenes cannot establish general accuracy. Frames are correlated, training overlap is unknown, there is no independent second annotation, and full-body human boxes can disagree with visible-content SAM boxes during occlusion. The app's main settings remain photo-oriented; this local video replay bridges into the saved app workflow. The generic temporal report's recovery summaries can bridge unscored gaps, so use individual scored-frame timelines for exact continuity judgments. These limits are not repaired by additional API spending.
+Limits: six tracks and two scenes cannot establish general accuracy. Frames are correlated, training overlap is unknown, there is no independent second annotation, and full-body human boxes can disagree with visible-content SAM boxes during occlusion. The app's main settings remain photo-oriented; this local video replay bridges into the saved app workflow. The submission-readiness correction now censors recovery summaries at unscored or missing-frame gaps. Individual scored-frame timelines remain available for inspection. These limits are not repaired by additional API spending.
 
 Branch: `codex/real-world-video-demo`. The final response records the resulting commit SHA. No push or merge was performed.

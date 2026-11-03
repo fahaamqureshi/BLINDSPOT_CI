@@ -10,7 +10,9 @@ from typing import Any
 
 from PIL import Image
 
-ROOT = Path(__file__).resolve().parents[2]
+from blindspot_ci.resources import RESOURCE_ROOT
+
+ROOT = RESOURCE_ROOT
 DATASETS = ROOT / "datasets"
 MANIFESTS = {"synthetic": DATASETS / "manifest.json", "real": DATASETS / "real_manifest.json",
              "generated": DATASETS / "generated_manifest.json",

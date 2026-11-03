@@ -1,5 +1,11 @@
 # Demo script: Find the Hidden Failure, Red Safety Tag Inspection
 
+## Current local demo and backup
+
+Open http://127.0.0.1:8040, choose Try a practice check, keep Practice photos selected, and click Run check. Show DEMO_ONLY, inspect the low-light failure in Test evidence, inspect the recorded decision order under Technical details, add a typed reviewer note, and download the Markdown report. These are explicitly scripted answers. The local submission-walkthrough.webm under artifacts/submission-audit is a recording of this actual workflow with repository-owned synthetic assets; it has not been uploaded or submitted.
+
+For saved real tracking evidence, use the local replay described in REAL_WORLD_VIDEO_DEMO.md. It contains non-commercial third-party footage and is excluded from the submission package. Do not publish it without confirming the applicable contest and asset terms. The earlier five-model report is also saved evidence, not a live call during playback. The standard importer now uses zero-based API indexes and excludes seed frames; regenerate older manifests before new inference.
+
 ## Verified mock route, 2026-11-03
 
 Recommended 2 to 3 minute no-cost route for this audit. The historical storyboard below includes live claims not reproduced in this audit. Confirm private portal video rules before recording.

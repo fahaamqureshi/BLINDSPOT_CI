@@ -1,5 +1,13 @@
 # User journey tests
 
+## Current release candidate journey
+
+The current mock server was tested at http://127.0.0.1:8040 with a real Chromium browser through agent-browser. The landing page opened the practice workspace, Run check created run 6a609abcaca0474f, and all four result tabs loaded. Actual fixture evidence images loaded. A reviewer note saved through the page persisted in the run sidecar. The 390 by 844 workspace had no horizontal overflow. No browser console errors were observed. Screenshots, browser-checks.json and submission-walkthrough.webm are local in artifacts/submission-audit.
+
+The fixture workflow correctly returned DEMO_ONLY, one deliberate low-light failure, an alternate-view pass and an unscored obstructed case. These are software checks, not model performance. Project CRUD, browser photo import, PDF export and server-side cancellation are not implemented. Import and annotation are local commands. HTTP cache, repeated download, concurrent read and process restart checks passed through scripts/audit_mock.py.
+
+Earlier browser observations follow.
+
 Date: 2026-11-03. Real Chromium browser through agent-browser, local mock server at 127.0.0.1:8015. Browser checks are manual automation observations, separate from pytest counts. Browser commands sometimes reported a successful click without changing the native disclosure state; DOM activation was used to complete the journey. This is an automation limitation, not evidence that the control is broken.
 
 | Journey | Result | Actual evidence |

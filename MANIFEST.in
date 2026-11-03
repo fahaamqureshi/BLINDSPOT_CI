@@ -1,0 +1,7 @@
+include data/scenarios.json
+include datasets/manifest.json datasets/real-labels-template.json
+include datasets/samples/absent.png datasets/samples/alternate_view.png
+include datasets/samples/low_light.png datasets/samples/normal.png datasets/samples/occluded.png
+include fixtures/mock_responses.json fixtures/ground_truth.json fixtures/expected_demo.json
+include fixtures/examples/8f6003378706480a.json fixtures/examples/a165cd6773cd433a.json
+include fixtures/policies/long-video.json

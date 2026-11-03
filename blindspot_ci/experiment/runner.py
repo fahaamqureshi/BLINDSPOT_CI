@@ -33,7 +33,7 @@ from blindspot_ci.provenance import ProvenanceLog, sha256_json
 from blindspot_ci.providers.base import VisionProvider
 from blindspot_ci.providers.mock import fixtures_digest
 
-RUN_ID = re.compile(r"^[0-9a-f]{16}$")
+RUN_ID = re.compile(r"^[0-9a-f]{16}\Z")
 SAM_CALL_ESTIMATE_USD = 0.0025
 
 
@@ -187,6 +187,9 @@ def load_run(runs_dir: Path, run_id: str) -> dict[str, Any]:
     if not RUN_ID.match(run_id):
         raise ValueError("invalid run id")
     path = runs_dir / f"{run_id}.json"
-    if not path.is_file():
+    if path.is_symlink() or not path.is_file():
         raise FileNotFoundError(run_id)
-    return json.loads(path.read_text(encoding="utf-8"))
+    report = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(report, dict) or report.get("id") != run_id or not isinstance(report.get("steps"), list):
+        raise ValueError("invalid saved run")
+    return report

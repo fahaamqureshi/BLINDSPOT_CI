@@ -4,9 +4,9 @@ BLINDSPOT CI is a release gate for vision models. It tests a model under test, h
 
 Start here:
 
-- Final audit dated 2026-11-03: `docs/FINAL_AUDIT.md` and `docs/FINAL_VERDICT.md`. This audit verified mock behavior only; live integration and private submission rules remain unverified.
+- Current release audit: `docs/SUBMISSION_READINESS.md`. Earlier audits remain dated historical records. Live evidence is documented separately; participant account rules and public deployment remain unverified.
 - Reproduce the no-cost restart and export journey: `python scripts/audit_mock.py`. Local browser screenshots are under `artifacts/final-audit`.
-- Import uses the local CLI and labeler. Project creation and browser photo upload are not implemented. Run from the repository checkout; the wheel alone does not distribute the datasets.
+- Import uses the local CLI and labeler. Project creation and browser photo upload are not implemented. The wheel includes public practice assets and saved examples. Use a repository checkout for private dataset workflows.
 
 - App: run `python -m blindspot_ci.cli serve`, then open http://127.0.0.1:8000/app
 - Workspace: choose a photo set and test limit in the visible settings panel, press Run check, then switch between Overview, Test evidence, Technical details and Reviewer tools. Historical results open only when selected explicitly.
@@ -48,7 +48,8 @@ All results below are real SAM 3.1 answers scored against human labels. Run ids,
 
 - COCO val2017, live, 132 photos, run `a165cd6773cd433a`: NO_GO. Low light 6 of 10, small objects 19 of 24.
 - DAVIS 2017 video frames, live, 112 frames from 14 clips, run `8f6003378706480a`: NEEDS_REVIEW. SAM may have seen DAVIS in training. This is UNVERIFIED and should be checked against the SAM papers before it is quoted.
-- Long video, live, one public MOT20-03 crowd video of 2,405 frames, 16 people followed from box prompts, corrected run `e30e0efcc7ca43a7`: NO_GO. Only 3 of 16 people were followed correctly on at least 90 percent of their scored frames. The first scoring wrongly showed 0 of 16 because the service returned boxes at a smaller size. The bug was fixed and the saved raw text was re-scored for free. One paid call, about 0.48 US dollars.
+- New crowd video case study: `docs/REAL_WORLD_VIDEO_DEMO.md`. Run `3015e3b160ee410d` used two clips shorter than a minute, six seeded tracks and human references, with explicit zero-based frame alignment. It passed 1,391 of 1,863 eligible target-frame checks. This small, correlated sample is not a benchmark. Media stays local under its non-commercial license.
+- Historical MOT20 run `e30e0efcc7ca43a7` needs its original frame mapping rechecked after the reusable importer alignment fix. Its earlier headline percentages are not current validated performance claims.
 
 The saved COCO and DAVIS runs used a scripted test order, not an agent choosing the tests. The Muse Spark agent planner is implemented, but it did not produce these results.
 
@@ -186,7 +187,7 @@ Working method:
 - Mock and fixture results are not model performance.
 - Intervals treat frames as independent. Frames from one clip or track are correlated, so they overstate certainty.
 - On COCO, low light at 6 of 10 against 113 of 122 for the rest has an exact p value of 0.0087 raw and 0.0612 after Holm correction, so that slice is not distinguishable from chance on its own.
-- MOT20 human boxes include hidden body parts, the camera is not fixed, and only one sequence with 16 people was run.
+- MOT20 human boxes include hidden body parts. The latest verified case study covers six selected tracks in two clips, with seed frames excluded. It does not establish general tracking reliability.
 - Contest rules and deliverable requirements are UNVERIFIED until the owner reads the official Rules.
 
 ## Licences and data

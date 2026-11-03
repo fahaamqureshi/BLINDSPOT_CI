@@ -1,5 +1,13 @@
 # Submission checklist
 
+## Current release candidate update
+
+See SUBMISSION_READINESS.md and FINAL_VERDICT.md for the current state. Local checks pass 370 tests, the installed wheel runs outside the checkout, and the public source ZIP is rebuilt and checked separately. CI now runs the full local gate and installed-wheel smoke on Python 3.11 and 3.13; no hosted CI run for this unpushed branch is claimed. Only Python 3.13 is installed on this machine. Docker execution and a hosted demo remain unverified.
+
+The official public event page was rechecked: https://dev.meta.ai/events/global-hackathon still lists November 4, 2026 at 9:00 PM ET. Private acceptance, registered track, submission fields, required model usage, source visibility, permitted recording duration and third-party media terms remain UNVERIFIED. The public waiver rendered in Chromium and its official project rubric was read: Impact 30 percent, Meta AI tooling 25 percent, Technical depth and execution 20 percent, Demo 25 percent. The actual submission route redirected to sign-in, so participant-specific fields remain unverified. A source archive and local recording do not constitute a submitted entry or receipt.
+
+The earlier checklist below retains historical completed items and owner-only obligations. Its old test counts and earlier cap amounts describe those earlier checks, not this release candidate.
+
 ## Final audit update, 2026-11-03
 
 The [official Meta page](https://dev.meta.ai/events/global-hackathon) confirms November 4, 2026 at 9:00 PM ET, which is November 5 at 7:00 AM in Karachi. The [organizer page](https://cerebralvalley.ai/e/meta-ai-developer-hackathon) agrees. Private participant rules and the submission form were inaccessible in this audit; the public waiver returned Loading. Application fields are not submission requirements.

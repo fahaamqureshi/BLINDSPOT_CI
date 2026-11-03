@@ -18,16 +18,18 @@ class BlindspotAgent:
 
     def __init__(self, provider: VisionProvider, cache: JsonCache, provenance: ProvenanceLog,
                  max_iterations: int = 4, max_calls: int = 12, budget_usd: float = 5.0,
-                 planner: ProbePlanner | None = None):
+                 planner: ProbePlanner | None = None, budget_parent: BudgetGuard | None = None):
         self.provider, self.cache, self.provenance = provider, cache, provenance
         self.max_iterations = max_iterations
         self.max_calls = max_calls
         self.budget_usd = budget_usd
+        self.budget_parent = budget_parent
         self.planner: ProbePlanner = planner or HeuristicPlanner()
 
     def run(self, scenario: Scenario) -> RunReport:
         run_id = f"run_{uuid.uuid4().hex[:12]}"
-        budget = BudgetGuard(max_calls=self.max_calls, max_cost_usd=self.budget_usd)
+        budget = BudgetGuard(max_calls=self.max_calls, max_cost_usd=self.budget_usd,
+                             parent=self.budget_parent)
         planner = self._prepare_planner(scenario, run_id, budget)
         results: list[ProviderResult] = []
         observed: list[Detection] = []

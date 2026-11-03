@@ -247,7 +247,7 @@ def release_gate(args) -> int:
     from blindspot_ci.experiment import release_gate as rg
 
     try:
-        policy = rg.load_policy(args.policy)
+        policy = rg.load_policy(args.policy) if args.policy else None
         agreement = rg.load_agreement(args.agreement) if args.agreement else None
         report = rg.evaluate_file(Settings().runs_dir, args.run, policy, agreement)
     except (OSError, ValueError, KeyError, TypeError) as exc:

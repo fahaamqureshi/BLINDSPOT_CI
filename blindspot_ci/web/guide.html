@@ -41,7 +41,7 @@
 </ul></section>
 
 <section aria-labelledby="long-h"><h2 id="long-h">Real long video test</h2>
-<p>We ran the model on a public crowd video of 2,405 frames and followed 16 people through it. The first run had a scoring bug that we found and fixed: the model's boxes came back at half size. The verdict was Do not ship yet. Only 3 of 16 people were followed correctly on at least 90 percent of their frames, and the median person was followed on 82.5 percent of frames. People in crowded or dark parts of the clip were often followed with a weak overlap.</p>
+<p>The latest local crowd test uses a 17-second station clip and a 20-second stadium exit clip. Six people were selected from human annotations before inference. SAM received each person's starting box, then followed that person through later frames. Starting frames are excluded. With verified frame alignment, 1,391 of 1,863 eligible target-frame checks passed. The video policy says Do not ship yet because occluded tracking is below the bar. These repeated frames are a small case study, not a general accuracy estimate. The older 2,405-frame run needs its original frame mapping rechecked.</p>
 <p>Two caveats. Human boxes include hidden body parts, while the model outlines only what it sees. The camera is not fixed. The clip is non-commercial data and is not stored in this repository.</p></section>
 
 <section aria-labelledby="gloss-h"><h2 id="gloss-h">Glossary</h2>

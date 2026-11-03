@@ -1,5 +1,11 @@
 # Final product audit
 
+## Current submission-readiness pass
+
+The current repository audit is recorded in [SUBMISSION_READINESS.md](SUBMISSION_READINESS.md). It covers the installed wheel, shared pre-call budget reservations, malformed requests, video frame alignment, seed exclusion, gap-censored recovery, consistent video policy selection, Pillow 13 security fixes, browser use and source packaging. The local full suite passes 370 tests. No paid call was made in this pass. Earlier live evidence is linked in FULL_LIVE_MODEL_TEST.md and REAL_WORLD_VIDEO_DEMO.md.
+
+The audit below is an earlier baseline, not the current release verdict.
+
 Audit date: 2026-11-03. Mode: mock only. Baseline commit: f6ff94dee434abf882954c01ffe1bad27e51a805. Branch: codex/final-product-audit. Historical live claims in other documents were not independently reproduced in this audit.
 
 | Component | Status | Evidence | Defect | Priority |

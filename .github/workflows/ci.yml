@@ -11,6 +11,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Disable live services
+        run: |
+          echo "DOTENV_DISABLED=1" >> "$GITHUB_ENV"
+          echo "BLINDSPOT_PROVIDER=mock" >> "$GITHUB_ENV"
+          echo "BLINDSPOT_PLANNER=heuristic" >> "$GITHUB_ENV"
+          echo "LIVE_API_ENABLED=false" >> "$GITHUB_ENV"
       - run: python -m pip install -e ".[dev]"
-      - run: python -m ruff check blindspot_ci scripts tests
-      - run: python -m pytest
+      - run: python scripts/check.py
+      - run: python -m pip wheel . --no-deps --wheel-dir dist
+      - run: python scripts/verify_wheel.py dist/blindspot_ci-0.1.0-py3-none-any.whl

@@ -1,5 +1,11 @@
 # API integration validation
 
+## Current evidence scope
+
+Saved live execution is now available in FULL_LIVE_MODEL_TEST.md for all five configured roles, including actual Muse Spark tool calls and SAM observations. REAL_WORLD_VIDEO_DEMO.md records two further fresh SAM video requests, 929 returned frames and independently verified human-reference scoring. No paid API call was made in this readiness pass. The earlier mock-only statement below describes that earlier audit, not the project's present evidence inventory.
+
+Transport implementations were not replaced. This pass corrects the reusable video importer's API index mapping and validates it with intercepted transport. It does not claim the original tray scenario has real photographs, that model performance improved, or that saved evidence is a new inference call. Historical long-video headline statistics need frame-mapping review.
+
 Reviewed 2026-11-03. Live SAM inference verified in this audit: NO. Live Muse tool calling verified in this audit: NO. Offline fixture and intercepted HTTP contract tests: PASS. Repository instructions require mock-only execution, so credentials were not inspected and no real smoke request was attempted. Historical saved runs are archival evidence, not a new live validation.
 
 ## Official contract review

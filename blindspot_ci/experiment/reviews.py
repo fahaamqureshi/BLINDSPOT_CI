@@ -9,7 +9,7 @@ from typing import Any
 
 from blindspot_ci.fsutil import FILE_LOCK, atomic_write_text
 
-RUN_ID = re.compile(r"^[0-9a-f]{16}$")
+RUN_ID = re.compile(r"^[0-9a-f]{16}\Z")
 MAX_NOTES_PER_RUN = 100
 MAX_NOTE = 1000
 NOTE_SOURCES = {"typed", "MUSE_VOICE_TRANSCRIBE"}
@@ -20,7 +20,10 @@ def _path(runs_dir: Path, run_id: str) -> Path:
         raise ValueError("invalid run id")
     if not (runs_dir / f"{run_id}.json").is_file():
         raise FileNotFoundError(run_id)
-    return runs_dir / f"{run_id}.extras.json"
+    path = runs_dir / f"{run_id}.extras.json"
+    if path.is_symlink():
+        raise ValueError("review sidecar must not be a symbolic link")
+    return path
 
 
 def load_extras(runs_dir: Path, run_id: str) -> dict[str, Any]:

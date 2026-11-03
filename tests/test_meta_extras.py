@@ -169,6 +169,18 @@ def test_new_endpoints_are_refused_without_live_switch(client, run_id):
     assert client.post(f"/api/runs/{run_id}/voice?case_id=normal", content=wav_bytes()).status_code == 403
 
 
+def test_invalid_voice_case_and_content_length_refused_before_adapter(client, run_id, monkeypatch):
+    def forbidden():
+        raise AssertionError("invalid request must not construct a paid adapter")
+
+    monkeypatch.setattr(factory, "build_voice_adapter", forbidden)
+    assert client.post(f"/api/runs/{run_id}/voice?case_id=not-tested", content=wav_bytes()).status_code == 422
+    for length in ("not-a-number", "-1"):
+        response = client.post(f"/api/runs/{run_id}/voice?case_id=normal", content=wav_bytes(),
+                               headers={"content-length": length})
+        assert response.status_code == 422
+
+
 def test_typed_note_is_saved_and_returned_with_run(client, run_id):
     case = client.get(f"/api/runs/{run_id}").json()["steps"][0]["case"]["id"]
     ok = client.post(f"/api/runs/{run_id}/notes", json={"case_id": case, "text": "box looks right"})
@@ -270,7 +282,7 @@ def test_corruption_severity_actually_degrades(source):
     means = []
     for e in entries:
         with Image.open(base / e["image"]) as img:
-            means.append(sum(img.convert("L").getdata()) / (img.width * img.height))
+            means.append(sum(img.convert("L").get_flattened_data()) / (img.width * img.height))
     assert means[1] < means[0] < 200
 
 

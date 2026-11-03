@@ -389,7 +389,8 @@ def _score_target(target: dict[str, Any], parsed: Any, id_to_label: dict[int, st
 
 
 def _step(sequence_name: str, target: dict[str, Any], result: dict[str, Any], row: dict[str, Any],
-          manifest_digest: str, source: str = "LIVE_META") -> dict[str, Any]:
+          manifest_digest: str, source: str = "LIVE_META",
+          frame_size: tuple[int, int] = (960, 540)) -> dict[str, Any]:
     tags = row["tags"]
     condition = _condition(tags)
     case_id = f"{sequence_name}-{result['target_id']}-{row['frame']}"
@@ -401,6 +402,7 @@ def _step(sequence_name: str, target: dict[str, Any], result: dict[str, Any], ro
     return {
         "case": {"id": case_id, "title": f"{sequence_name} target {result['target_id']} frame {row['frame']}",
                  "condition": condition, "tags": tags, "visibility": "visible",
+                 "width": frame_size[0], "height": frame_size[1],
                  "ground_truth_box": row["human_box"]},
         "decision": {"case_id": case_id, "reason": "one scored frame per target per 25 frames",
                      "planner": "SEEDED_BOX_TRACKING", "tool_call_id": None},
@@ -410,7 +412,8 @@ def _step(sequence_name: str, target: dict[str, Any], result: dict[str, Any], ro
         "prediction": {"source": source, "provider": "meta", "model": "sam-3.1",
                        "parser_status": "structured", "detections": ([{"bbox": row["model_box"]}]
                                                                             if row["model_box"] else [])},
-        "image_sha256": hashlib.sha256(f"{manifest_digest}:{sequence_name}:{row['frame']}".encode()).hexdigest(),
+        "frame_identity_sha256": hashlib.sha256(
+            f"{manifest_digest}:{sequence_name}:{row['frame']}".encode()).hexdigest(),
     }
 
 
@@ -477,7 +480,8 @@ def run_long_video(manifest: dict[str, Any], names: list[str], budget_usd: float
                 for row in scored_target["frames"]:
                     if row["status"] != "NOT_SCORED" and (int(row["frame"]) - int(target["seed_frame"])) % 25 == 0:
                         steps.append(_step(name, target, scored_target, row, manifest_digest,
-                                           "CACHE_LIVE_META" if replayed_from_raw else "LIVE_META"))
+                                           "CACHE_LIVE_META" if replayed_from_raw else "LIVE_META",
+                                           request_frame_size))
         except (BudgetExceeded, MetaApiError, OSError, ValueError) as exc:
             if isinstance(exc, VideoRequestRefused):
                 guard.release_cost(exc.reserved_cost)
@@ -499,6 +503,11 @@ def run_long_video(manifest: dict[str, Any], names: list[str], budget_usd: float
         "planner_prompt_version": None,
         "dataset": {"id": DATASET_ID, "type": DATASET_TYPE, "annotation_status": "human_labeled"},
         "min_iou": min_iou, "steps": steps, "errors": errors,
+        "configured_case_ids": [
+            f"{name}-{target['track_id']}-{row['frame']}"
+            for name in names for target in sequences[name]["targets"] for row in target["frames"]
+            if row.get("status") == "SCORED"
+            and (int(row["frame"]) - int(target["seed_frame"])) % 25 == 0],
         "summary": summarize([CaseOutcome(**step["outcome"]) for step in steps],
                               {step["outcome"]["case_id"]: step["case"]["condition"] for step in steps}, min_iou),
         "calls": guard.calls, "estimated_cost_usd": round(total_estimated or guard.cost_usd, 6),
@@ -522,14 +531,18 @@ def _miss_runs(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], int]:
     runs: list[dict[str, Any]] = []
     current: list[dict[str, Any]] = []
     for row in rows:
+        if current and (row.get("status") not in {PASS, FALSE_NEGATIVE, LOCALIZATION}
+                        or int(row["frame"]) != int(current[-1]["frame"]) + 1):
+            runs.append({"misses": current, "recovery": None, "censored": True})
+            current = []
         if row.get("status") == FALSE_NEGATIVE or row.get("status") == LOCALIZATION:
             current.append(row)
         elif row.get("status") == PASS and current:
-            runs.append({"misses": current, "recovery": row})
+            runs.append({"misses": current, "recovery": row, "censored": False})
             current = []
     if current:
-        runs.append({"misses": current, "recovery": None})
-    return runs, sum(item["recovery"] is None for item in runs)
+        runs.append({"misses": current, "recovery": None, "censored": False})
+    return runs, sum(item["recovery"] is None and not item["censored"] for item in runs)
 
 
 def _dropout(rows: list[dict[str, Any]], frame_count: int) -> list[tuple[int, int, float | None]]:
@@ -606,7 +619,8 @@ def render_temporal_report(runs_dir: Path, run_id: str) -> str:
         recovery_text = (f"{len(miss_runs)} miss runs; recovery median {_recovery_stat(recovery_median, fps)}, "
                          f"90th percentile {_recovery_stat(recovery_p90, fps)}, "
                          f"longest {_recovery_stat(recovery_longest, fps)}; "
-                         f"never recovered {never}.")
+                         f"never recovered before observed end {never}; "
+                         f"censored by unscored gaps {sum(item['censored'] for item in miss_runs)}.")
         false_negative = sum(row.get("status") == FALSE_NEGATIVE for row in all_rows)
         localization = sum(row.get("status") == LOCALIZATION for row in all_rows)
         failure_total = false_negative + localization

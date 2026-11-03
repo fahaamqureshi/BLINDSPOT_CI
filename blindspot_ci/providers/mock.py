@@ -5,8 +5,9 @@ from pathlib import Path
 from typing import Any
 
 from blindspot_ci.models import Detection, ProviderResult, Scenario
+from blindspot_ci.resources import RESOURCE_ROOT
 
-RESPONSES_PATH = Path(__file__).resolve().parents[2] / "fixtures" / "mock_responses.json"
+RESPONSES_PATH = RESOURCE_ROOT / "fixtures" / "mock_responses.json"
 
 
 def fixtures_digest() -> str:

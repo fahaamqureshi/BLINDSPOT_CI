@@ -14,7 +14,7 @@ from blindspot_ci.experiment.power import cases_needed, upper_bound_no_failures
 from blindspot_ci.experiment.scoring import MIN_SLICE_FOR_CLAIM
 
 LIMITS = [
-    "Scoring uses box overlap against one human box. There is no mask-quality metric and SAM returned no confidence scores.",
+    "Scoring uses box overlap against one human box. Mask quality and confidence are not used to decide passes.",
     "Each case is one photo. A pass is one example that met the threshold, not a guarantee for that condition.",
     "Small slices have wide intervals. Report counts with their interval, never a bare percentage.",
     "Labels were not independently re-checked unless a reviewer is named in label_provenance.",
@@ -51,6 +51,8 @@ def _order_sentence(planner: Any) -> str:
         return "Tests followed a heuristic order set by plain Python rules."
     if "SCRIPT" in name:
         return "Tests followed a fixed scripted order."
+    if name == "SEEDED_BOX_TRACKING":
+        return "Human starting boxes seed the targets. The model follows them through subsequent frames."
     return "Test order recorded in the run was used."
 
 
@@ -67,6 +69,7 @@ def build_card(run: dict[str, Any]) -> str:
     if run["mode"].endswith("MOCK_FIXTURE"):
         flags.append("This run used scripted mock answers. It shows the software working and says nothing about SAM.")
     kind = dataset["type"]
+    is_video = kind == "HUMAN_LABELED_VIDEO"
     if "SYNTHETIC" in kind:
         flags.append("The images are programmatic drawings. This is a plumbing check, not evidence about SAM.")
     if kind.startswith("GENERATED"):
@@ -93,7 +96,8 @@ def build_card(run: dict[str, Any]) -> str:
         f"- Unknown (not scored): {summary['unknown']}. Errors (not scored): {summary['errors']}.", "",
         "## Method", "",
         (f"{_order_sentence(planner)} SAM 3.1 segments "
-         "the photo. Python scores the best box against the human box. A case passes when the best IoU is "
+         f"{'each video target frame' if is_video else 'the photo'}. Python scores "
+         f"{'the matching target box' if is_video else 'the best box'} against the human box. A case passes when IoU is "
          f"at least {run['min_iou']}, or when nothing is returned for an absent label. Intervals are 95 percent "
          "Wilson score intervals (Brown, Cai and DasGupta 2001)."), "",
         "## Results", "",
@@ -123,7 +127,7 @@ def build_card(run: dict[str, Any]) -> str:
     if audit:
         lines += ["", "## Audit text", "", f"Written by {audit['model']} from the saved results. It changes no score.", "",
                   "```text", audit["text"].replace("```", "'''"), "```"]
-    gate = release_gate.evaluate(run, release_gate.load_policy(None), None)
+    gate = release_gate.evaluate(run, release_gate.policy_for_run(run), None)
     lines += ["", "## Release gate", "", f"Decision: {gate['decision']}"]
     if gate.get("reason"):
         lines.append(f"Reason: {_cell(gate['reason'])}")
@@ -138,10 +142,16 @@ def build_card(run: dict[str, Any]) -> str:
     lines += ["", "## Reproducibility", "",
               f"- Run id {run['id']}. Calls {run['calls']}. Estimated cost ${run['estimated_cost_usd']}.",
               f"- Pass threshold: IoU {run['min_iou']}."]
-    lines += [f"- {s['case']['id']}: image sha256 {s['image_sha256'][:16]}, source "
+    lines += [f"- {s['case']['id']}: "
+              f"{'image sha256' if s.get('image_sha256') else 'frame identity sha256'} "
+              f"{(s.get('image_sha256') or s.get('frame_identity_sha256') or 'unavailable')[:16]}, source "
               f"{(s['prediction'] or {}).get('source', 'none')}, model {(s['prediction'] or {}).get('model', 'none')}."
               for s in steps]
-    lines += ["", "## Known limits", ""] + [f"- {item}" for item in LIMITS]
+    limits = [item for item in LIMITS if not is_video or not item.startswith("Each case is one photo")]
+    if is_video:
+        limits.append("Frames from one seeded track are correlated. Seed frames are excluded by the import protocol; "
+                      "human full-body boxes and visible model boxes can differ during occlusion.")
+    lines += ["", "## Known limits", ""] + [f"- {item}" for item in limits]
     lines += ["", "## Where this fits", "",
               "- Model Cards and Datasheets: intended use, evaluation data, metrics and limits are stated above.",
               "- NIST AI RMF MEASURE 2.1: test sets, metrics and tools are documented here.",

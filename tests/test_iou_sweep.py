@@ -60,7 +60,7 @@ def test_035_counts_match_saved_statuses_for_every_condition():
 
 def test_cli_iou_sweep_reads_the_saved_run(tmp_path, monkeypatch, capsys):
     run_id = "a" * 16
-    (tmp_path / f"{run_id}.json").write_text(json.dumps({"steps": [
+    (tmp_path / f"{run_id}.json").write_text(json.dumps({"id": run_id, "steps": [
         _step("normal_01", "normal", [0, 0, 10, 10], [0, 0, 10, 4], "PASS")
     ]}), encoding="utf-8")
     monkeypatch.setenv("BLINDSPOT_RUNS_DIR", str(tmp_path))

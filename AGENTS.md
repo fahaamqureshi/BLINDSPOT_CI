@@ -18,6 +18,11 @@ python -m pytest --basetemp="$pytestTemp" -p no:cacheprovider
 
 Use mock mode only. The final gate before reporting is `python scripts/check.py`.
 
+Python 3.11 or newer is required. Build distributable public assets with
+`python -m pip wheel . --no-deps --wheel-dir dist`, then run
+`python scripts/verify_wheel.py dist/blindspot_ci-0.1.0-py3-none-any.whl`.
+This installed-wheel check runs outside the checkout with live access disabled.
+
 For audit servers set DOTENV_DISABLED=1, BLINDSPOT_PROVIDER=mock,
 BLINDSPOT_PLANNER=heuristic and LIVE_API_ENABLED=false before starting Python.
 Run `python scripts/audit_mock.py` to check HTTP, cache, export and process restart

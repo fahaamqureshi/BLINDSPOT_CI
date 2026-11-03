@@ -43,7 +43,7 @@ def build_wonder_auditor(settings: Settings | None = None) -> MuseWonderAuditor:
     return adapter
 
 
-def build_agent(settings: Settings | None = None) -> BlindspotAgent:
+def build_agent(settings: Settings | None = None, *, budget_parent: BudgetGuard | None = None) -> BlindspotAgent:
     cfg = settings or Settings()
     planner: ProbePlanner = HeuristicPlanner()
     if cfg.provider == "meta":
@@ -57,14 +57,16 @@ def build_agent(settings: Settings | None = None) -> BlindspotAgent:
     else:
         provider = MockVisionProvider()
     return BlindspotAgent(provider, JsonCache(cfg.cache_dir), ProvenanceLog(cfg.provenance_path),
-                          cfg.max_iterations, cfg.max_calls, cfg.budget_usd, planner=planner)
+                          cfg.max_iterations, cfg.max_calls, cfg.budget_usd, planner=planner,
+                          budget_parent=budget_parent)
 
 
-def build_experiment(settings: Settings | None = None, planner: str | None = None) -> ExperimentRunner:
+def build_experiment(settings: Settings | None = None, planner: str | None = None, *,
+                     budget_parent: BudgetGuard | None = None) -> ExperimentRunner:
     """Case-based experiment. Live calls need BLINDSPOT_PROVIDER=meta AND LIVE_API_ENABLED=true."""
     cfg = settings or Settings()
     dataset = load_named_dataset(cfg.dataset)
-    budget = BudgetGuard(max_calls=cfg.max_calls, max_cost_usd=cfg.budget_usd)
+    budget = BudgetGuard(max_calls=cfg.max_calls, max_cost_usd=cfg.budget_usd, parent=budget_parent)
     wants_muse = (planner or cfg.planner) == "muse"
     if cfg.provider == "meta" or wants_muse:
         if not cfg.live_api_enabled:

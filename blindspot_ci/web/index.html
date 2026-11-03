@@ -183,10 +183,10 @@ function photoSet(run){const id=run.dataset&&run.dataset.id;const known={'synthe
 function evidenceCard(st,run){
   const c=st.case,o=st.outcome,fn=o.status==='FAIL_FALSE_NEGATIVE',fp=o.status==='FAIL_FALSE_POSITIVE';
   const alt=c.title+', '+statusText(o.status);
-  const box=h('div',{class:'evbox'}),svg=boxSvg(st,c.width,c.height,alt);box.append(svg);
+  const box=h('div',{class:'evbox'}),svg=boxSvg(st,c.width||960,c.height||540,alt);box.append(svg);
   const im=new Image();im.alt=alt;im.loading='eager';
   im.onload=()=>{box.insertBefore(im,svg);svg.querySelectorAll('.evph,.evphtxt').forEach(e=>e.remove());svg.removeAttribute('role');svg.setAttribute('aria-hidden','true');svg.removeAttribute('aria-label')};
-  im.src=`${c.image_url}?dataset=${encodeURIComponent(photoSet(run))}`;
+  if(c.image_url)im.src=`${c.image_url}?dataset=${encodeURIComponent(photoSet(run))}`;
   const hasGt=st.ground_truth&&st.ground_truth.bbox,hasPred=st.prediction&&st.prediction.detections.some(d=>d.bbox);
   const visibility=(st.ground_truth||{}).visibility;
   const what=o.status==='UNKNOWN'?'Visibility is unknown. This case is not scored as a model miss.':o.status==='ERROR'?'This test could not be completed. It is not scored as a model miss.':fn?'The prediction contains no box.':fp?'The reference says absent, but the prediction contains a box.':visibility==='absent'?'The prediction correctly contains no box.':`Box overlap: ${o.iou===null?'n/a':Number(o.iou).toFixed(2)}. Required: ${Number(run.summary.min_iou).toFixed(2)}.`;

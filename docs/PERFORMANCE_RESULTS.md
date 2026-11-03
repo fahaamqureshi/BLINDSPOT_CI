@@ -1,5 +1,11 @@
 # Local performance results
 
+## Current repeat measurement
+
+A new isolated Windows Python 3.13.15 mock audit measured startup 1037.01 ms, five-case evaluation 29.97 ms, cached evaluation 17.66 ms, gate 8.48 ms, Markdown export 2.12 ms, twenty reads with four workers 31.37 ms total, and restart 1038.07 ms. All twenty reads returned 200, all five repeat steps hit cache, and the saved run and export survived restart. Paid calls: zero. Raw output: artifacts/submission-audit/http-audit-output.json. These are single local smoke measurements, not percentile latency or hosted load results. Peak memory remains unmeasured.
+
+The earlier measurements below are historical repetitions, not additional independent performance samples.
+
 Date: 2026-11-03. Windows, Python 3.13.15, existing virtual environment, loopback Uvicorn. Single measured smoke run after development, no hosted measurement and no statistical latency study. Reproduce with python scripts/audit_mock.py. Raw evidence: artifacts/final-audit/evidence.json, run 336018068fb54ae7.
 
 | Operation | Measured milliseconds |

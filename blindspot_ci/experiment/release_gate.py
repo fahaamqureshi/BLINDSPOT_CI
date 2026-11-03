@@ -17,6 +17,7 @@ from blindspot_ci.experiment.coverage import DERIVED_NAMES, SYNTHETIC_NAMES, con
 from blindspot_ci.experiment.power import cases_needed
 from blindspot_ci.experiment.runner import RUN_ID
 from blindspot_ci.experiment.scoring import ERROR, PASS, UNKNOWN, wilson_interval
+from blindspot_ci.resources import RESOURCE_ROOT
 
 GO_CANDIDATE, NO_GO, NEEDS_REVIEW, DEMO_ONLY = "GO_CANDIDATE", "NO_GO", "NEEDS_REVIEW", "DEMO_ONLY"
 EXIT_CODES = {GO_CANDIDATE: 0, NO_GO: 1, NEEDS_REVIEW: 2, DEMO_ONLY: 3}
@@ -251,15 +252,27 @@ def evaluate(run: dict[str, Any], policy: dict[str, Any], agreement: dict[str, A
     return {**base, "decision": decision, "checks": checks, "next_experiments": sorted(set(fixes))}
 
 
-def evaluate_file(runs_dir: Path, run_id: str, policy: dict[str, Any],
+def policy_for_run(run: dict[str, Any]) -> dict[str, Any]:
+    """Use the committed video policy for temporal evidence, and the photo policy otherwise."""
+    dataset = run.get("dataset") or {}
+    if dataset.get("type") == "HUMAN_LABELED_VIDEO":
+        return load_policy(RESOURCE_ROOT / "fixtures" / "policies" / "long-video.json")
+    return load_policy(None)
+
+
+def evaluate_file(runs_dir: Path, run_id: str, policy: dict[str, Any] | None = None,
                   agreement: dict[str, Any] | None = None) -> dict[str, Any]:
     if not RUN_ID.match(run_id):
         raise ValueError("invalid run id")
     path = runs_dir / f"{run_id}.json"
-    if not path.is_file():
+    if path.is_symlink() or not path.is_file():
         raise FileNotFoundError(run_id)
     raw = path.read_bytes()
-    return evaluate(json.loads(raw.decode("utf-8")), policy, agreement, hashlib.sha256(raw).hexdigest())
+    run = json.loads(raw.decode("utf-8"))
+    if not isinstance(run, dict) or run.get("id") != run_id or not isinstance(run.get("steps"), list):
+        raise ValueError("invalid saved run")
+    return evaluate(run, policy if policy is not None else policy_for_run(run), agreement,
+                    hashlib.sha256(raw).hexdigest())
 
 
 def load_agreement(path: str | Path) -> dict[str, Any]:

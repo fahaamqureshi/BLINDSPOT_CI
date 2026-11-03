@@ -1,5 +1,18 @@
 # Audit release notes
 
+## Current readiness corrections, 2026-11-03
+
+- Shared estimated spending is reserved before each call across concurrent in-process runs.
+- Invalid request headers, voice cases, saved reports and linked files fail without unintended paid work.
+- Standard MOT import now uses zero-based API frame indexes and excludes the seed and unobservable references.
+- Video recovery episodes stop at unscored gaps, and video gate selection is consistent across app, CLI and cards.
+- Missing thumbnails no longer create undefined image requests or invalid SVG dimensions.
+- The wheel bundles only explicit public fixture assets and is checked outside the source tree.
+- Pillow 13 security fixes are required; Python minimum is now 3.11.
+- CI includes documentation, attribution, secret-pattern, source test and installed-wheel checks without live credentials.
+
+The supported release remains a local single-user evaluation tool and public mock demonstration. Public multi-user live operation and participant-specific submission requirements are not verified. See SUBMISSION_READINESS.md.
+
 Date: 2026-11-03. Existing product retained. No push, merge, deployment or submission.
 
 - Correct full-precision IoU threshold decisions.

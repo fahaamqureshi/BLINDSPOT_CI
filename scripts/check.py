@@ -101,7 +101,7 @@ def check_secrets() -> tuple[bool, list[str]]:
 def main(argv: list[str]) -> int:
     fast = "--fast" in argv
     results: list[tuple[str, bool | None, list[str]]] = []
-    ok, out = run([sys.executable, "-m", "ruff", "check", "blindspot_ci", "scripts", "tests"])
+    ok, out = run([sys.executable, "-m", "ruff", "check", "blindspot_ci", "scripts", "tests", "setup.py"])
     results.append(("ruff", ok, [] if ok else out.splitlines()))
     if not fast:
         with tempfile.TemporaryDirectory() as base:

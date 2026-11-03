@@ -11,7 +11,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 INCLUDE_DIRS = ["blindspot_ci", "tests", "docs", "fixtures", "data", "datasets", "scripts", ".github"]
-INCLUDE_FILES = ["README.md", "LICENSE", "pyproject.toml", ".env.example", ".gitignore", "Dockerfile", ".dockerignore"]
+INCLUDE_FILES = ["README.md", "LICENSE", "pyproject.toml", "setup.py", "MANIFEST.in",
+                 ".env.example", ".gitignore", "Dockerfile", ".dockerignore"]
 SKIP_PARTS = {"__pycache__", ".pytest_cache", ".ruff_cache", ".venv", ".blindspot-cache"}
 SKIP_SUFFIXES = {".pyc", ".pyo", ".jsonl"}
 # Private labeled photos and run reports never go into a shared ZIP.
@@ -25,10 +26,12 @@ SECRET_PATTERNS = [
 
 
 def collect() -> list[Path]:
-    files = [ROOT / name for name in INCLUDE_FILES if (ROOT / name).is_file()]
+    files = [ROOT / name for name in INCLUDE_FILES
+             if (ROOT / name).is_file() and not (ROOT / name).is_symlink()]
     for directory in INCLUDE_DIRS:
         for path in sorted((ROOT / directory).rglob("*")):
-            if (path.is_file() and not ((SKIP_PARTS | PRIVATE_PARTS) & set(path.parts))
+            if (path.is_file() and not path.is_symlink()
+                    and not ((SKIP_PARTS | PRIVATE_PARTS) & set(path.parts))
                     and path.suffix not in SKIP_SUFFIXES):
                 files.append(path)
     return files

@@ -4,8 +4,9 @@ import json
 from pathlib import Path
 
 from blindspot_ci.models import GroundTruthObject, Scenario
+from blindspot_ci.resources import RESOURCE_ROOT
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = RESOURCE_ROOT
 
 
 def load_scenarios(path: Path | None = None) -> dict[str, Scenario]:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import dataclasses
+import threading
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query, Request
@@ -32,10 +33,11 @@ from blindspot_ci.providers.meta_extras import (
     audit_input,
 )
 from blindspot_ci.providers.mock import MockVisionProvider
+from blindspot_ci.resources import RESOURCE_ROOT
 from blindspot_ci.security import install_local_guard
 
 WEB = Path(__file__).parent / "web"
-EXAMPLES = Path(__file__).resolve().parent.parent / "fixtures" / "examples"
+EXAMPLES = RESOURCE_ROOT / "fixtures" / "examples"
 app = FastAPI(title="BLINDSPOT CI", version="0.1.0")
 install_local_guard(app)
 
@@ -123,14 +125,16 @@ def _available_datasets() -> list[str]:
 
 
 _SESSION: BudgetGuard | None = None
+_SESSION_LOCK = threading.Lock()
 
 
 def _guard(cfg: Settings) -> BudgetGuard:
     """One spend cap shared by every image, voice and audit call this server makes, so repeated
     clicks cannot exceed BLINDSPOT_BUDGET_USD. Experiments keep their own per-run guard."""
     global _SESSION
-    if _SESSION is None:
-        _SESSION = BudgetGuard(max_calls=max(cfg.max_calls * 10, 100), max_cost_usd=cfg.budget_usd)
+    with _SESSION_LOCK:
+        if _SESSION is None:
+            _SESSION = BudgetGuard(max_calls=max(cfg.max_calls * 10, 100), max_cost_usd=cfg.budget_usd)
     return _SESSION
 
 
@@ -150,10 +154,10 @@ def _runs_dir_for(run_id: str) -> Path:
     return runs
 
 
-def _run_or_404(run_id: str) -> None:
+def _run_or_404(run_id: str) -> dict:
     try:
-        load_run(Settings().runs_dir, run_id)
-    except (ValueError, FileNotFoundError) as exc:
+        return load_run(Settings().runs_dir, run_id)
+    except (ValueError, OSError) as exc:
         raise HTTPException(404, "run not found") from exc
 
 
@@ -222,15 +226,14 @@ def experiment(request: ExperimentRequest) -> dict[str, object]:
         _dataset(request.dataset)
         cfg = dataclasses.replace(cfg, dataset=request.dataset)
     try:
-        runner = build_experiment(cfg)
+        spends = cfg.provider == "meta" or cfg.planner == "muse"
+        runner = build_experiment(cfg, budget_parent=_guard(cfg) if spends else None)
     except PermissionError as exc:
         raise HTTPException(403, str(exc)) from exc
     spends = cfg.provider == "meta" or cfg.planner == "muse"
     if spends and _guard(cfg).exhausted():
         raise HTTPException(429, "this server's spend cap is used up; restart it or raise BLINDSPOT_BUDGET_USD")
     report = runner.run(request.max_steps)
-    if report["estimated_cost_usd"] > 0:
-        _guard(cfg).charge(report["calls"], report["estimated_cost_usd"])
     return report
 
 
@@ -262,15 +265,15 @@ def run_record(run_id: str) -> dict[str, object]:
     try:
         runs = _runs_dir_for(run_id)
         return {**load_run(runs, run_id), **load_extras(runs, run_id)}
-    except (ValueError, FileNotFoundError) as exc:
+    except (ValueError, OSError) as exc:
         raise HTTPException(404, "run not found") from exc
 
 
 @app.get("/api/runs/{run_id}/release-gate")
 def run_release_gate(run_id: str) -> dict[str, object]:
     try:
-        return release_gate.evaluate_file(_runs_dir_for(run_id), run_id, release_gate.load_policy(None))
-    except (ValueError, FileNotFoundError) as exc:
+        return release_gate.evaluate_file(_runs_dir_for(run_id), run_id)
+    except (ValueError, OSError, KeyError, TypeError) as exc:
         raise HTTPException(404, "run not found") from exc
 
 
@@ -357,7 +360,7 @@ def run_card(run_id: str) -> PlainTextResponse:
     try:
         runs = _runs_dir_for(run_id)
         run = {**load_run(runs, run_id), **load_extras(runs, run_id)}
-    except (ValueError, FileNotFoundError) as exc:
+    except (ValueError, OSError, KeyError, TypeError) as exc:
         raise HTTPException(404, "run not found") from exc
     return PlainTextResponse(build_card(run), media_type="text/markdown; charset=utf-8",
                              headers={"Content-Disposition": f'attachment; filename="evaluation-card-{run_id}.md"'})
@@ -375,10 +378,18 @@ def add_text_note(run_id: str, request: NoteRequest) -> dict[str, object]:
 @app.post("/api/runs/{run_id}/voice")
 async def add_voice_note(run_id: str, case_id: str, request: Request) -> dict[str, object]:
     """Raw WAV body (mono PCM, 16 kHz or 24 kHz). Muse Voice Transcribe turns it into a note."""
-    _run_or_404(run_id)
-    adapter = _live(factory.build_voice_adapter)
-    if int(request.headers.get("content-length") or 0) > MAX_WAV_BYTES:
+    run = _run_or_404(run_id)
+    if case_id not in {step["case"]["id"] for step in run["steps"]}:
+        raise HTTPException(422, "case was not part of this run")
+    try:
+        content_length = int(request.headers.get("content-length") or 0)
+        if content_length < 0:
+            raise ValueError("negative length")
+    except ValueError as exc:
+        raise HTTPException(422, "invalid audio content length") from exc
+    if content_length > MAX_WAV_BYTES:
         raise HTTPException(413, "audio is over 32 MB")
+    adapter = _live(factory.build_voice_adapter)
     chunks: list[bytes] = []
     size = 0
     async for chunk in request.stream():
@@ -437,13 +448,15 @@ def run(request: RunRequest):
         raise HTTPException(404, "scenario not found")
     cfg = Settings()
     try:
-        agent = build_agent(cfg)
+        spends = cfg.provider == "meta" or cfg.planner == "muse"
+        agent = build_agent(cfg, budget_parent=_guard(cfg) if spends else None)
     except PermissionError as exc:
         raise HTTPException(403, str(exc)) from exc
     spends = cfg.provider == "meta" or cfg.planner == "muse"
     if spends and _guard(cfg).exhausted():
         raise HTTPException(429, "this server's spend cap is used up; restart it or raise BLINDSPOT_BUDGET_USD")
-    report = agent.run(scenarios[request.scenario_id])
-    if report.estimated_cost_usd > 0:
-        _guard(cfg).charge(report.calls, report.estimated_cost_usd)
+    try:
+        report = agent.run(scenarios[request.scenario_id])
+    except BudgetExceeded as exc:
+        raise HTTPException(429, str(exc)) from exc
     return report
